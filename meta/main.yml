@@ -3,7 +3,6 @@ dependencies: []
 
 galaxy_info:
   author: oatakan
-  name: packer-rhel
   description: RedHat/CentOS configuration for Packer.
   company: "Red Hat"
   license: "license (BSD, MIT)"

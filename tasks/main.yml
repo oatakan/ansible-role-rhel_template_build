@@ -101,3 +101,24 @@
   with_items:
     - '^HWADDR'
     - '^UUID'
+
+- name: Force logs to rotate (step 1)
+  shell: /usr/sbin/logrotate -f /etc/logrotate.conf
+
+- name: Force logs to rotate (step 2)
+  shell: rm -f /var/log/*-???????? /var/log/*.gz
+
+- name: Clear audit log and wtmp (step 1)
+  shell: cat /dev/null > /var/log/audit/audit.log
+
+- name: Clear audit log and wtmp (step 2)
+  shell: cat /dev/null > /var/log/wtmp
+
+- name: Cleaning up tmp
+  shell: rm -rf /tmp/* /var/tmp/*
+
+- name: Remove the SSH host keys
+  shell: rm -f /etc/ssh/*key*
+
+- name: Remove the root user shell history
+  shell: rm -f ~root/.bash_history && unset HISTFILE

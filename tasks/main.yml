@@ -113,13 +113,3 @@
 
 - name: Clear audit log and wtmp (step 2)
   shell: cat /dev/null > /var/log/wtmp
-
-- name: Cleaning up tmp
-  shell: rm -rf /tmp/* && rm -rf /var/tmp/*
-  ignore_errors: yes
-
-- name: Remove the SSH host keys
-  shell: rm -f /etc/ssh/*key*
-
-- name: Remove the root user shell history
-  shell: rm -f ~root/.bash_history && unset HISTFILE

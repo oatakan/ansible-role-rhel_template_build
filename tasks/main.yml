@@ -58,6 +58,9 @@
     group: vagrant
     mode: 0600
 
+- name: Restore selinux
+  shell: restorecon -R -v /home/vagrant/.ssh
+
 # VirtualBox tools installation.
 - name: Check if VirtualBox is running the guest VM.
   stat: path=/home/vagrant/.vbox_version

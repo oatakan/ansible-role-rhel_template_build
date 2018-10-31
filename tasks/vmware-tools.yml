@@ -19,7 +19,9 @@
 
 - command: ls -lah /home/vagrant
   register: vaglist
-- debug: var=vaglist
+
+- debug:
+    var: vaglist
 
 - name: Mount VMware tools.
   mount:

@@ -29,7 +29,9 @@
     state: present
 
 - name: Restart network service (explicitly).
-  service: name=network state=restarted
+  service:
+    name: network
+    state: restarted
 
 # SSH daemon configuration.
 - name: Configure SSH daemon.
@@ -58,6 +60,8 @@
     owner: vagrant
     group: vagrant
     mode: 0600
+  ignore_errors: yes
+  when: from_vagrant
 
 - name: autolabel on boot
   shell: fixfiles onboot

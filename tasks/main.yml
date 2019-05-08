@@ -20,6 +20,13 @@
       - cifs-utils
     state: present
 
+- name: Ensure libselinux-python package is installed.
+  yum:
+    name:
+      - libselinux-python
+    state: present
+  ignore_errors: yes
+
 # Fix slow DNS.
 - name: Fix slow DNS (adapted from Bento).
   lineinfile:

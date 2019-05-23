@@ -8,7 +8,7 @@
   until: '"error" not in install_epel'
   retries: 5
   delay: 10
-  when: ansible_distribution != 'CentOS'
+  when: ansible_distribution == 'CentOS'
 
 - name: install ovirt guest agent package
   package:

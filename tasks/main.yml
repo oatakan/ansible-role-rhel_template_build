@@ -16,7 +16,6 @@
       - kernel-headers
       - kernel-devel
       - "kernel-devel-{{ kernel_release.stdout }}"
-      - libselinux-python
       - cifs-utils
     state: present
 
@@ -25,7 +24,14 @@
     name:
       - libselinux-python
     state: present
-  ignore_errors: yes
+  when: ansible_distribution_major_version|int < 8
+
+- name: Ensure python3-libselinux package is installed.
+  yum:
+    name:
+      - python3-libselinux
+    state: present
+  when: ansible_distribution_major_version|int == 8
 
 # Fix slow DNS.
 - name: Fix slow DNS (adapted from Bento).

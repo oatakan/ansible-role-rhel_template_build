@@ -1,0 +1,20 @@
+---
+
+- name: install epel
+  yum:
+    name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+    state: present
+  register: install_epel
+  until: '"error" not in install_epel'
+  retries: 5
+  delay: 10
+  when: ansible_distribution != 'CentOS'
+
+- name: install ovirt guest agent package
+  package:
+    name: "{{ ovirt_guest_agent_package_name[ansible_distribution] }}"
+
+- name: enable ovirt guest agent
+  service:
+    name: "{{ ovirt_guest_agent_service_name }}"
+    enabled: yes

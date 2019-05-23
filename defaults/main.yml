@@ -1,2 +1,8 @@
 ---
 from_vagrant: no
+target_ovirt: no
+
+ovirt_guest_agent_service_name: ovirt-guest-agent
+ovirt_guest_agent_package_name:
+  RedHat: rhevm-guest-agent-common
+  CentOS: ovirt-guest-agent-common

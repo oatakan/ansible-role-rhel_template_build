@@ -9,8 +9,8 @@
 
 - name: create growpart cloud-init script to grow partition on boot
   template:
-    src: 01-growpart.cfg.j2
-    dest: /etc/cloud/cloud.cfg.d/01-growpart.cfg
+    src: 01_growpart.cfg.j2
+    dest: /etc/cloud/cloud.cfg.d/01_growpart.cfg
   when:
     - ansible_lvm is defined
     - ansible_lvm.lvs is defined

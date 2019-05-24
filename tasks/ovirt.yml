@@ -1,6 +1,6 @@
 ---
 
-- name: install epel
+- name: ensure epel is installed
   yum:
     name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
     state: present
@@ -10,22 +10,26 @@
   delay: 10
   when: ansible_distribution == 'CentOS'
 
+- name: ensure cloud-init is installed
+  package:
+    name: cloud-init
+
 # rhevm-guest-agent-common package is not yet available for RHEL 8
-- name: install ovirt guest agent package
+- name: ensure ovirt guest agent package is installed
   package:
     name: "{{ ovirt_guest_agent_package_name[ansible_distribution] }}"
   register: ovirt_package_installation
   when: ansible_distribution_major_version|int < 8
 
 # try installing ovirt package on RHEL 8 for now
-- name: install ovirt guest agent package
+- name: ensure ovirt guest agent package is installed
   package:
     name: "{{ ovirt_guest_agent_package_name['CentOS'] }}"
   when: ansible_distribution_major_version|int == 8
   register: ovirt_package_installation
   ignore_errors: yes
 
-- name: enable ovirt guest agent
+- name: ensure ovirt guest agent is enabled
   service:
     name: "{{ ovirt_guest_agent_service_name }}"
     enabled: yes

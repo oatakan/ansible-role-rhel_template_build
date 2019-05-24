@@ -10,7 +10,7 @@
   delay: 10
   when: ansible_distribution == 'CentOS'
 
-- name: ensure cloud-init package are installed
+- name: ensure cloud-init packages are installed
   package:
     name:
       - cloud-init

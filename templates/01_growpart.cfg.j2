@@ -1,5 +1,9 @@
 bootcmd:
  -
+  - '/usr/bin/date'
+  - '>'
+  - '/root/cloud_init_debug_from_bootcmd.txt'
+ -
   - cloud-init-per
   - once
   - the_root_vgname='{{ ansible_lvm.lvs[the_root_lvname].vg | default('vg00') }}'
@@ -22,33 +26,34 @@ bootcmd:
  -
   - cloud-init-per
   - once
-  - growpart
+  - /usr/bin/growpart
   - $the_root_pv_device
   - $the_root_pv_partnum
  -
   - cloud-init-per
   - once
-  - pvresize
+  - /usr/sbin/pvresize
   - $the_root_pvname
  -
   - cloud-init-per
   - once
-  - lvextend
+  - /usr/sbin/lvextend
   - /dev/mapper/$the_root_vgname-$the_root_lvname
   - $the_root_pvname
  -
   - cloud-init-per
   - once
-  - xfs_growfs
+  - /usr/sbin/xfs_growfs
   - /dev/mapper/$the_root_vgname-$the_root_lvname
 
 runcmd:
+ - /usr/bin/date > /root/cloud_init_debug_from_runcmd.txt
  - the_root_vgname='{{ ansible_lvm.lvs[the_root_lvname].vg | default('vg00') }}'
  - the_root_lvname='{{ the_root_lvname | default('root') }}'
  - the_root_pvname=$(vgdisplay -v $the_root_vgname 2> /dev/null | awk '/PV Name/ {print $3}')
  - the_root_pv_partnum=$(echo $the_root_pvname | grep -o '[0-9]$')
  - the_root_pv_device="$(echo $the_root_pvname | grep -o '.*[^0-9]')"
- - growpart $the_root_pv_device $the_root_pv_partnum
- - pvresize $the_root_pvname
- - lvextend /dev/mapper/$the_root_vgname-$the_root_lvname $the_root_pvname
- - xfs_growfs /dev/mapper/$the_root_vgname-$the_root_lvname
+ - /usr/bin/growpart $the_root_pv_device $the_root_pv_partnum
+ - /usr/sbin/pvresize $the_root_pvname
+ - /usr/sbin/lvextend /dev/mapper/$the_root_vgname-$the_root_lvname $the_root_pvname
+ - /usr/sbin/xfs_growfs /dev/mapper/$the_root_vgname-$the_root_lvname

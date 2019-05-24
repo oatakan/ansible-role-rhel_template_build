@@ -10,13 +10,6 @@
   delay: 10
   when: ansible_distribution == 'CentOS'
 
-- name: ensure cloud-init packages are installed
-  package:
-    name:
-      - cloud-init
-      - cloud-utils-growpart
-      - gdisk
-
 # rhevm-guest-agent-common package is not yet available for RHEL 8
 - name: ensure ovirt guest agent package is installed
   package:

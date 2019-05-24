@@ -86,6 +86,9 @@
 - name: autolabel on boot
   shell: fixfiles onboot
 
+- include_tasks: cloud-init.yml
+  when: target_ovirt | bool
+
 - include_tasks: ovirt.yml
   when: target_ovirt | bool
 

@@ -1,0 +1,23 @@
+---
+
+- name: ensure cloud-init packages are installed
+  package:
+    name:
+      - cloud-init
+      - cloud-utils-growpart
+      - gdisk
+
+- name: create growpart cloud-init script to grow partition on boot
+  template:
+    src: 01-growpart.cfg.j2
+    dest: /etc/cloud/cloud.cfg.d/01-growpart.cfg
+  when:
+    - ansible_lvm is defined
+    - ansible_lvm.lvs is defined
+    - ansible_lvm.lvs[the_root_lvname] is defined
+    - ansible_lvm.lvs[the_root_lvname].vg is defined
+    - ansible_lvm.vgs is defined
+    - ansible_lvm.pvs is defined
+    - ansible_cmdline is defined
+    - ansible_cmdline.root is defined
+    - ansible_lvm.lvs[the_root_lvname].vg in ansible_cmdline.root

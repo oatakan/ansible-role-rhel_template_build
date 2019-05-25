@@ -1,5 +1,5 @@
 bootcmd:
- - /usr/bin/date > /root/cloud_init_debug_from_runcmd.txt
+ - /usr/bin/date > /root/cloud_init_debug_from_bootcmd.txt
  - the_root_vgname='{{ ansible_lvm.lvs[the_root_lvname].vg | default('vg00') }}'
  - the_root_lvname='{{ the_root_lvname | default('root') }}'
  - the_root_pvname=$(vgdisplay -v $the_root_vgname 2> /dev/null | awk '/PV Name/ {print $3}')

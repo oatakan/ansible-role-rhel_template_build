@@ -81,7 +81,7 @@
     group: vagrant
     mode: 0600
   ignore_errors: yes
-  when: from_vagrant
+  when: from_vagrant | bool
 
 - name: autolabel on boot
   shell: fixfiles onboot

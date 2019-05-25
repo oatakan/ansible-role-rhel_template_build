@@ -7,11 +7,18 @@
       - cloud-utils-growpart
       - gdisk
 
-- name: create growpart cloud-init script to grow partition on boot
-  template:
-    src: grow_part.sh.j2
-    dest: /var/lib/cloud/scripts/per-instance/grow_part.sh
-    mode: u=rwx,g=rx,o=rx
+- block:
+    - name: ensure cloud-init scripts directory exists
+      file:
+        path: /var/lib/cloud/scripts/per-instance
+        state: directory
+        mode: '0755'
+
+    - name: create growpart cloud-init script to grow partition on boot
+      template:
+        src: grow_part.sh.j2
+        dest: /var/lib/cloud/scripts/per-instance/grow_part.sh
+        mode: u=rwx,g=rx,o=rx
   when:
     - ansible_lvm is defined
     - ansible_lvm.lvs is defined

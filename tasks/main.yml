@@ -158,9 +158,19 @@
   shell: /usr/sbin/logrotate -f /etc/logrotate.conf
   changed_when: false
 
+- name: Find any log files to delete
+  find:
+    paths: /var/log
+    patterns:
+      - "*-????????"
+      - "*.gz"
+  register: find_log_files
+
 - name: Force logs to rotate (step 2)
-  shell: rm -f /var/log/*-???????? /var/log/*.gz
-  changed_when: false
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ find_log_files.files }}"
 
 - name: Clear audit log and wtmp (step 1)
   shell: cat /dev/null > /var/log/audit/audit.log

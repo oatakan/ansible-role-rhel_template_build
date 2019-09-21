@@ -125,20 +125,9 @@
 
 - name: Clean up yum.
   command: yum clean all
+  args:
+    warn: no
   changed_when: false
-
-- name: Find any VirtualBox ISOs.
-  find:
-    paths: /home/{{ local_account_username }}
-    patterns: "^VBoxGuestAdditions_*.iso*"
-    use_regex: yes
-  register: virtualbox_iso_files_to_delete
-
-- name: Ensure any remnants of VirtualBox ISOs removed.
-  file:
-    path: "{{ item.path }}"
-    state: absent
-  loop: "{{ wildcard_files_to_delete.files }}"
 
 - name: Remove RedHat interface persistence (step 1).
   file:

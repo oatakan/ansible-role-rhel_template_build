@@ -69,16 +69,16 @@
   file:
     path: /home/{{ local_account_username }}/.ssh
     state: directory
-    owner: {{ local_account_username }}
-    group: {{ local_account_username }}
+    owner: "{{ local_account_username }}"
+    group: "{{ local_account_username }}"
     mode: 0700
 
 - name: Get Vagrant's public key.
   get_url:
     url: https://github.com/mitchellh/vagrant/raw/master/keys/vagrant.pub
     dest: /home/{{ local_account_username }}/.ssh/authorized_keys
-    owner: {{ local_account_username }}
-    group: {{ local_account_username }}
+    owner: "{{ local_account_username }}"
+    group: "{{ local_account_username }}"
     mode: 0600
   ignore_errors: yes
   when: from_vagrant | bool

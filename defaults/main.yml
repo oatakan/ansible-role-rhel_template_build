@@ -2,6 +2,9 @@
 from_vagrant: no
 target_ovirt: no
 
+local_account_username: ansible
+local_account_password: Chang3MyP@ssw0rd21
+
 ovirt_guest_agent_service_name: ovirt-guest-agent
 ovirt_guest_agent_package_name:
   RedHat: rhevm-guest-agent-common

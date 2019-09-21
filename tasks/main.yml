@@ -64,21 +64,21 @@
     - { regexp: '^UseDNS', line: 'UseDNS no' }
     - { regexp: '^GSSAPIAuthentication', line: 'GSSAPIAuthentication no' }
 
-# Vagrant SSH configuration.
-- name: Configure Vagrant .ssh directory.
+# Local user SSH configuration.
+- name: Configure local user .ssh directory.
   file:
-    path: /home/vagrant/.ssh
+    path: /home/{{ local_account_username }}/.ssh
     state: directory
-    owner: vagrant
-    group: vagrant
+    owner: {{ local_account_username }}
+    group: {{ local_account_username }}
     mode: 0700
 
 - name: Get Vagrant's public key.
   get_url:
     url: https://github.com/mitchellh/vagrant/raw/master/keys/vagrant.pub
-    dest: /home/vagrant/.ssh/authorized_keys
-    owner: vagrant
-    group: vagrant
+    dest: /home/{{ local_account_username }}/.ssh/authorized_keys
+    owner: {{ local_account_username }}
+    group: {{ local_account_username }}
     mode: 0600
   ignore_errors: yes
   when: from_vagrant | bool
@@ -95,7 +95,7 @@
 # VirtualBox tools installation.
 - name: Check if VirtualBox is running the guest VM.
   stat:
-    path: /home/vagrant/.vbox_version
+    path: /home/{{ local_account_username }}/.vbox_version
   register: virtualbox_check
 
 - include_tasks: virtualbox.yml

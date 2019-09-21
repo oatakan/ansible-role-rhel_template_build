@@ -17,7 +17,7 @@
     - vmfusion
     - vmfusion-archive
 
-- command: ls -lah /home/vagrant
+- command: ls -lah /home/{{ local_account_username }}
   register: vaglist
 
 - debug:
@@ -26,7 +26,7 @@
 - name: Mount VMware tools.
   mount:
     name: /tmp/vmfusion
-    src: /home/vagrant/linux.iso
+    src: /home/{{ local_account_username }}/linux.iso
     fstype: iso9660
     opts: loop
     state: mounted
@@ -40,7 +40,7 @@
 - name: Unmount VMware tools.
   mount:
     name: /tmp/vmfusion
-    src: /home/vagrant/linux.iso
+    src: /home/{{ local_account_username }}/linux.iso
     fstype: iso9660
     state: absent
 
@@ -54,5 +54,5 @@
 
 - name: Delete VMware Tools.
   file:
-    path: /home/vagrant/linux.iso
+    path: /home/{{ local_account_username }}/linux.iso
     state: absent

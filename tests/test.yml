@@ -3,4 +3,4 @@
   remote_user: root
 
   roles:
-    - ansible-role-packer-rhel
+    - oatakan.rhel_template_build

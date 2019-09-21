@@ -84,7 +84,8 @@
   when: from_vagrant | bool
 
 - name: autolabel on boot
-  shell: fixfiles onboot
+  command: fixfiles onboot
+  changed_when: False
 
 - include_tasks: cloud-init.yml
   when: target_ovirt | bool
@@ -103,7 +104,9 @@
 
 # VMware tools installation.
 - name: Check if VMWare is running the guest VM.
-  shell: "cat /proc/scsi/scsi | grep VMware"
+  shell: |
+    set -o pipefail
+    cat /proc/scsi/scsi | grep VMware
   changed_when: false
   failed_when: false
   register: vmware_check
@@ -122,12 +125,25 @@
 
 - name: Clean up yum.
   command: yum clean all
+  changed_when: false
 
-- name: Remove any remnants of VirtualBox ISOs.
-  shell: rm -rf VBoxGuestAdditions_*.iso VBoxGuestAdditions_*.iso.?
+- name: Find any VirtualBox ISOs.
+  find:
+    paths: /home/{{ local_account_username }}
+    patterns: "^VBoxGuestAdditions_*.iso*"
+    use_regex: yes
+  register: virtualbox_iso_files_to_delete
+
+- name: Ensure any remnants of VirtualBox ISOs removed.
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ wildcard_files_to_delete.files }}"
 
 - name: Remove RedHat interface persistence (step 1).
-  shell: rm -f /etc/udev/rules.d/70-persistent-net.rules
+  file:
+    path: /etc/udev/rules.d/70-persistent-net.rules
+    state: absent
 
 - name: Remove RedHat interface persistence (step 2).
   lineinfile:
@@ -140,12 +156,16 @@
 
 - name: Force logs to rotate (step 1)
   shell: /usr/sbin/logrotate -f /etc/logrotate.conf
+  changed_when: false
 
 - name: Force logs to rotate (step 2)
   shell: rm -f /var/log/*-???????? /var/log/*.gz
+  changed_when: false
 
 - name: Clear audit log and wtmp (step 1)
   shell: cat /dev/null > /var/log/audit/audit.log
+  changed_when: false
 
 - name: Clear audit log and wtmp (step 2)
   shell: cat /dev/null > /var/log/wtmp
+  changed_when: false

@@ -12,5 +12,7 @@ ovirt_guest_agent_package_name:
   RedHat: rhevm-guest-agent-common
   CentOS: ovirt-guest-agent-common
 
+qemu_guest_agent_package_name: qemu-guest-agent-common
+
 the_root_vgname: vg00
 the_root_lvname: root

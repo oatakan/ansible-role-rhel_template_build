@@ -18,9 +18,9 @@
   when: ansible_distribution_major_version|int < 8
 
 # try installing qemu package on RHEL/CentOS 8 for now
-- name: ensure ovirt guest agent package is installed
+- name: ensure qemu guest agent package is installed
   package:
-    name: "{{ ovirt_guest_agent_package_name['qemu'] }}"
+    name: qemu-guest-agent-common
   when: ansible_distribution_major_version|int == 8
   register: ovirt_package_installation
   ignore_errors: yes

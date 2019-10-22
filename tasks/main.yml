@@ -129,6 +129,29 @@
     warn: no
   changed_when: false
 
+- name: Flag the system for re-configuration
+  file:
+    path: /.unconfigured
+    state: touch
+
+- name: Find ssh-host files to delete
+  find:
+    paths: /etc/ssh
+    patterns: "^ssh_host_*"
+    use_regex: yes
+  register: ssh_files_to_delete
+
+- name: Remove ssh-host files
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ ssh_files_to_delete.files }}"
+
+- name: Reset hostname to localhost.localadmin
+  copy:
+    content: 'localhost.localdomain'
+    dest: /etc/hostname
+
 - name: Remove RedHat interface persistence (step 1).
   file:
     path: /etc/udev/rules.d/70-persistent-net.rules

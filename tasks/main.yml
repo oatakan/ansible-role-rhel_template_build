@@ -134,19 +134,6 @@
     path: /.unconfigured
     state: touch
 
-- name: Find ssh-host files to delete
-  find:
-    paths: /etc/ssh
-    patterns: "^ssh_host_*"
-    use_regex: yes
-  register: ssh_files_to_delete
-
-- name: Remove ssh-host files
-  file:
-    path: "{{ item.path }}"
-    state: absent
-  loop: "{{ ssh_files_to_delete.files }}"
-
 - name: Reset hostname to localhost.localadmin
   copy:
     content: 'localhost.localdomain'
@@ -191,3 +178,16 @@
 - name: Clear audit log and wtmp (step 2)
   shell: cat /dev/null > /var/log/wtmp
   changed_when: false
+
+- name: Find ssh-host files to delete
+  find:
+    paths: /etc/ssh
+    patterns: "^ssh_host_*"
+    use_regex: yes
+  register: ssh_files_to_delete
+
+- name: Remove ssh-host files
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ ssh_files_to_delete.files }}"

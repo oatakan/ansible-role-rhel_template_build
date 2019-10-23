@@ -179,15 +179,19 @@
   shell: cat /dev/null > /var/log/wtmp
   changed_when: false
 
-- name: Find ssh-host files to delete
-  find:
-    paths: /etc/ssh
-    patterns: "^ssh_host_*"
-    use_regex: yes
-  register: ssh_files_to_delete
+#- name: Find ssh-host files to delete
+#  find:
+#    paths: /etc/ssh
+#    patterns: "^ssh_host_*"
+#    use_regex: yes
+#  register: ssh_files_to_delete
+#
+#- name: Remove ssh-host files
+#  file:
+#    path: "{{ item.path }}"
+#    state: absent
+#  loop: "{{ ssh_files_to_delete.files }}"
 
 - name: Remove ssh-host files
-  file:
-    path: "{{ item.path }}"
-    state: absent
-  loop: "{{ ssh_files_to_delete.files }}"
+  command: rm -fr /etc/ssh/ssh_host_*
+  changed_when: false

@@ -1,4 +1,7 @@
 ---
+
+- include_tasks: selinux.yml
+
 - name: Get the current kernel release.
   command: uname -r
   changed_when: false
@@ -146,7 +149,7 @@
 
 - name: Remove RedHat interface persistence (step 2).
   lineinfile:
-    dest: /etc/sysconfig/network-scripts/ifcfg-eth0
+    dest: /etc/sysconfig/network-scripts/ifcfg-{{ ansible_default_ipv4.interface | default('eth0') }}
     regexp: "{{ item }}"
     state: absent
   loop:
@@ -195,3 +198,4 @@
 - name: Remove ssh-host files
   command: rm -fr /etc/ssh/ssh_host_*
   changed_when: false
+  warn: false

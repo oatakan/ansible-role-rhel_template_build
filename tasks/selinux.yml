@@ -1,13 +1,5 @@
 ---
 
-- name: run getenforce
-  command: getenforce
-  register: getenforce_command
-
-- debug:
-    msg: "{{ getenforce_command.stdout }}"
-  when: getenforce_command.stdout is defined
-
 - name: Ensure SELinux is set to proper state
   selinux:
     policy: "{{ selinux_policy_name }}"

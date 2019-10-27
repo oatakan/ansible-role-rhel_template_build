@@ -198,4 +198,5 @@
 - name: Remove ssh-host files
   command: rm -fr /etc/ssh/ssh_host_*
   changed_when: false
-  warn: false
+  args:
+    warn: false

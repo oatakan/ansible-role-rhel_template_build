@@ -1,7 +1,5 @@
 ---
 
-- include_tasks: selinux.yml
-
 - name: Get the current kernel release.
   command: uname -r
   changed_when: false

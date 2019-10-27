@@ -14,8 +14,5 @@ ovirt_guest_agent_package_name:
 
 qemu_guest_agent_package_name: qemu-guest-agent
 
-selinux_state: disabled
-selinux_policy_name: targeted
-
 the_root_vgname: vg00
 the_root_lvname: root

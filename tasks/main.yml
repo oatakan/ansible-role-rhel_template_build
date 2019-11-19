@@ -54,6 +54,9 @@
     state: restarted
   when: ansible_distribution_major_version|int == 8
 
+- name: Ensure we can still connect
+  wait_for_connection:
+
 # SSH daemon configuration.
 - name: Configure SSH daemon.
   lineinfile:

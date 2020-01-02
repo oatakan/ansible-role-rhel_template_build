@@ -7,6 +7,16 @@
       - cloud-utils-growpart
       - gdisk
 
+- name: set grow part info
+  set_fact:
+    grow_part_info:
+      lvm: "{{ ansible_lvm }}"
+      cmdline: "{{ ansible_cmdline }}"
+
+- name: grow part info
+  debug:
+    msg: "{{ grow_part_info }}"
+
 - block:
     - name: ensure cloud-init scripts directory exists
       file:

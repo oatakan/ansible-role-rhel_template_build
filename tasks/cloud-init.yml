@@ -10,16 +10,6 @@
 - debug:
     msg: "{{ hostvars[inventory_hostname] }}"
 
-#- name: set grow part info
-#  set_fact:
-#    grow_part_info:
-#      lvm: "{{ ansible_lvm }}"
-#      cmdline: "{{ ansible_cmdline }}"
-#
-#- name: grow part info
-#  debug:
-#    msg: "{{ grow_part_info }}"
-
 - block:
     - name: ensure cloud-init scripts directory exists
       file:
@@ -32,13 +22,13 @@
         src: grow_part.sh.j2
         dest: /var/lib/cloud/scripts/per-instance/grow_part.sh
         mode: u=rwx,g=rx,o=rx
-  when:
-    - ansible_lvm is defined
-    - ansible_lvm.lvs is defined
-    - ansible_lvm.lvs[the_root_lvname] is defined
-    - ansible_lvm.lvs[the_root_lvname].vg is defined
-    - ansible_lvm.vgs is defined
-    - ansible_lvm.pvs is defined
-    - ansible_cmdline is defined
-    - ansible_cmdline.root is defined
-    - ansible_lvm.lvs[the_root_lvname].vg in ansible_cmdline.root
+#  when:
+#    - ansible_lvm is defined
+#    - ansible_lvm.lvs is defined
+#    - ansible_lvm.lvs[the_root_lvname] is defined
+#    - ansible_lvm.lvs[the_root_lvname].vg is defined
+#    - ansible_lvm.vgs is defined
+#    - ansible_lvm.pvs is defined
+#    - ansible_cmdline is defined
+#    - ansible_cmdline.root is defined
+#    - ansible_lvm.lvs[the_root_lvname].vg in ansible_cmdline.root

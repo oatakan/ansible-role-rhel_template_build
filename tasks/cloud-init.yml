@@ -7,9 +7,6 @@
       - cloud-utils-growpart
       - gdisk
 
-- debug:
-    msg: "{{ hostvars[inventory_hostname] }}"
-
 - block:
     - name: ensure cloud-init scripts directory exists
       file:

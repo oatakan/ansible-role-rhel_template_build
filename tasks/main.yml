@@ -125,6 +125,7 @@
       - cpp
       - kernel-devel
       - kernel-headers
+    disablerepo: '*'
     state: absent
 
 - name: Clean up yum.

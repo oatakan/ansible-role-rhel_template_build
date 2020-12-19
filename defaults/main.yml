@@ -1,5 +1,6 @@
 ---
 
+target_vagrant: no
 target_ovirt: no
 
 local_account_username: ansible

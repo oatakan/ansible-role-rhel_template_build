@@ -85,7 +85,7 @@
     group: "{{ local_account_username }}"
     mode: 0600
   ignore_errors: yes
-  when: from_vagrant | bool
+  when: target_ovirt | bool
 
 - name: autolabel on boot
   command: fixfiles onboot

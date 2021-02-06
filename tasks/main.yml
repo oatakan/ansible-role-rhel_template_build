@@ -42,6 +42,15 @@
     line: 'RES_OPTIONS="single-request-reopen"'
     state: present
 
+# see https://fedoraproject.org/wiki/Changes/NetworkManager_keyfile_instead_of_ifcfg_rh
+- name: ensure older style network config files for greater compatibility
+  copy:
+    dest: /etc/NetworkManager/conf.d/99-main-plugins.conf
+    content: |
+      [main]
+      plugins=ifcfg-rh
+  when: ansible_distribution_major_version|int == 8
+
 - name: Restart network service (explicitly).
   service:
     name: network
@@ -149,9 +158,14 @@
     path: /etc/udev/rules.d/70-persistent-net.rules
     state: absent
 
+- name: Check for network config file
+  stat:
+    path: /etc/sysconfig/network-scripts/ifcfg-{{ ansible_default_ipv4.interface | default('eth0') }}
+  register: network_config_file
+
 - name: Remove RedHat interface persistence (step 2).
   lineinfile:
-    dest: /etc/sysconfig/network-scripts/ifcfg-{{ ansible_default_ipv4.interface | default('eth0') }}
+    dest: "{{ network_config_file.stat.path }}"
     regexp: "{{ item }}"
     state: absent
   loop:
@@ -160,12 +174,14 @@
     - '^IPADDR'
     - '^NETMASK'
     - '^GATEWAY'
+  when: network_config_file.stat.exists
 
 - name: Set interface to DHCP
   lineinfile:
-    dest: /etc/sysconfig/network-scripts/ifcfg-{{ ansible_default_ipv4.interface | default('eth0') }}
+    dest: "{{ network_config_file.stat.path }}"
     regexp: '^BOOTPROTO='
     line: BOOTPROTO=dhcp
+  when: network_config_file.stat.exists
 
 - name: Force logs to rotate (step 1)
   shell: /usr/sbin/logrotate -f /etc/logrotate.conf

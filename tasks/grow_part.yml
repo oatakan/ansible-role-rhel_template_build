@@ -9,5 +9,5 @@
 - name: create growpart cloud-init script to grow partition on boot
   template:
     src: grow_part.sh.j2
-    dest: /var/lib/cloud/scripts/per-instance/grow_part.sh
+    dest: /usr/local/bin/grow_part.sh
     mode: u=rwx,g=rx,o=rx

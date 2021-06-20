@@ -22,4 +22,4 @@
     name: growpart
     daemon_reload: yes
     enabled: yes
-    state: reloaded
+    state: stopped

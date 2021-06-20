@@ -11,3 +11,15 @@
     src: grow_part.sh.j2
     dest: /usr/local/bin/grow_part.sh
     mode: u=rwx,g=rx,o=rx
+
+- name: copy growpart service
+  copy:
+    src: growpart.service
+    dest: /etc/systemd/system/growpart.service
+
+- name: reload service
+  systemd:
+    name: growpart
+    daemon_reload: yes
+    enabled: yes
+    state: reloaded

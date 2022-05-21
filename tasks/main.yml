@@ -161,29 +161,34 @@
     path: /etc/udev/rules.d/70-persistent-net.rules
     state: absent
 
+- name: Ensure NetworkManager config file is removed
+  file:
+    path: /etc/NetworkManager/system-connections/{{ ansible_default_ipv4.interface | default('eth0') }}.nmconnection
+    state: absent
+
 - name: Check for network config file
   stat:
     path: /etc/sysconfig/network-scripts/ifcfg-{{ ansible_default_ipv4.interface | default('eth0') }}
   register: network_config_file
 
-- name: Remove RedHat interface persistence (step 2).
-  lineinfile:
-    dest: "{{ network_config_file.stat.path }}"
-    regexp: "{{ item }}"
-    state: absent
-  loop:
-    - '^HWADDR'
-    - '^UUID'
-    - '^IPADDR'
-    - '^NETMASK'
-    - '^GATEWAY'
-  when: network_config_file.stat.exists
+- block:
+    - name: Remove RedHat interface persistence (step 2).
+      lineinfile:
+        dest: "{{ network_config_file.stat.path }}"
+        regexp: "{{ item }}"
+        state: absent
+      loop:
+        - '^HWADDR'
+        - '^UUID'
+        - '^IPADDR'
+        - '^NETMASK'
+        - '^GATEWAY'
 
-- name: Set interface to DHCP
-  lineinfile:
-    dest: "{{ network_config_file.stat.path }}"
-    regexp: '^BOOTPROTO='
-    line: BOOTPROTO=dhcp
+    - name: Set interface to DHCP
+      lineinfile:
+        dest: "{{ network_config_file.stat.path }}"
+        regexp: '^BOOTPROTO='
+        line: BOOTPROTO=dhcp
   when: network_config_file.stat.exists
 
 - name: Force logs to rotate (step 1)

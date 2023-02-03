@@ -17,3 +17,5 @@ qemu_guest_agent_package_name: qemu-guest-agent
 
 the_root_vgname: vg00
 the_root_lvname: root
+
+permit_root_login_with_password: true

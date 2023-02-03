@@ -8,6 +8,27 @@
       - gdisk
 
 - block:
+    - name: check for cloud.cfg file
+      ansible.builtin.stat:
+        path: /etc/cloud/cloud.cfg
+      register: check_cloud_cfg
+
+    - block:
+        - name: ensure root login is enabled in cloud-init config
+          ansible.builtin.replace:
+            path: /etc/cloud/cloud.cfg
+            regexp: '^(disable_root\: ).*$'
+            replace: '\1false'
+
+        - name: ensure password login is enabled in cloud-init config
+          ansible.builtin.replace:
+            path: /etc/cloud/cloud.cfg
+            regexp: '^(ssh_pwauth\: ).*$'
+            replace: '\1true'
+      when: check_cloud_cfg.stat.exists
+  when: permit_root_login_with_password|bool
+
+- block:
     - name: ensure cloud-init scripts directory exists
       file:
         path: /var/lib/cloud/scripts/per-instance

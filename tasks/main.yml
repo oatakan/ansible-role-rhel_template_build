@@ -20,6 +20,13 @@
       - cifs-utils
     state: present
 
+- name: install dbus-tools on RHEL 8+
+  yum:
+    name:
+      - dbus-tools
+    state: present
+  when: ansible_distribution_major_version|int >= 8
+
 - name: Ensure libselinux-python package is installed.
   yum:
     name:

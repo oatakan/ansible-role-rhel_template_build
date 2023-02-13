@@ -1,13 +1,13 @@
 ---
 
 - name: import epel gpg key
-  rpm_key:
+  ansible.builtin.rpm_key:
     state: present
     key: https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-{{ ansible_distribution_major_version }}
   when: ansible_distribution == 'CentOS'
 
 - name: ensure epel is installed
-  yum:
+  ansible.builtin.yum:
     name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-{{ ansible_distribution_major_version }}.noarch.rpm
     state: present
   register: install_epel
@@ -18,21 +18,21 @@
 
 # rhevm-guest-agent-common package is not yet available for RHEL 8
 - name: ensure ovirt guest agent package is installed
-  package:
+  ansible.builtin.package:
     name: "{{ ovirt_guest_agent_package_name[ansible_distribution] }}"
   register: ovirt_package_installation
   when: ansible_distribution_major_version|int < 8
 
 # try installing qemu package on RHEL/CentOS 8 for now
 - name: ensure qemu guest agent package is installed
-  package:
+  ansible.builtin.package:
     name: "{{ qemu_guest_agent_package_name }}"
   when: ansible_distribution_major_version|int == 8
   register: qemu_package_installation
   ignore_errors: yes
 
 - name: ensure ovirt guest agent is enabled
-  service:
+  ansible.builtin.service:
     name: "{{ ovirt_guest_agent_service_name }}"
     enabled: yes
   when:
@@ -40,7 +40,7 @@
     - ovirt_package_installation is succeeded
 
 - name: ensure qemu guest agent is enabled
-  service:
+  ansible.builtin.service:
     name: "{{ qemu_guest_agent_service_name }}"
     enabled: yes
   when:

@@ -1,12 +1,12 @@
 ---
 
 - name: Get the current kernel release.
-  command: uname -r
+  ansible.builtin.command: uname -r
   changed_when: false
   register: kernel_release
 
 - name: Ensure necessary packages are installed.
-  yum:
+  ansible.builtin.yum:
     name:
       - wget
       - perl
@@ -21,29 +21,36 @@
     state: present
 
 - name: install dbus-tools on RHEL 8+
-  yum:
+  ansible.builtin.yum:
     name:
       - dbus-tools
     state: present
   when: ansible_distribution_major_version|int >= 8
 
 - name: Ensure libselinux-python package is installed.
-  yum:
+  ansible.builtin.yum:
     name:
       - libselinux-python
     state: present
   when: ansible_distribution_major_version|int < 8
 
-- name: Ensure python3-libselinux package is installed.
-  yum:
-    name:
-      - python3-libselinux
-    state: present
+- block:
+    - name: Ensure python3 packages are installed.
+      ansible.builtin.yum:
+        name:
+          - python3
+          - python3-libselinux
+        state: present
+
+    - name: set python
+      community.general.alternatives:
+        name: python
+        path: /usr/bin/python3
   when: ansible_distribution_major_version|int == 8
 
 # Fix slow DNS.
 - name: Fix slow DNS (adapted from Bento).
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/sysconfig/network
     regexp: '^RES_OPTIONS'
     line: 'RES_OPTIONS="single-request-reopen"'
@@ -51,7 +58,7 @@
 
 # see https://fedoraproject.org/wiki/Changes/NetworkManager_keyfile_instead_of_ifcfg_rh
 - name: ensure older style network config files for greater compatibility
-  copy:
+  ansible.builtin.copy:
     dest: /etc/NetworkManager/conf.d/99-main-plugins.conf
     content: |
       [main]
@@ -59,23 +66,23 @@
   when: ansible_distribution_major_version|int == 8
 
 - name: Restart network service (explicitly).
-  service:
+  ansible.builtin.service:
     name: network
     state: restarted
   when: ansible_distribution_major_version|int < 8
 
 - name: Restart NetworkManager service (explicitly).
-  service:
+  ansible.builtin.service:
     name: NetworkManager
     state: restarted
   when: ansible_distribution_major_version|int == 8
 
 - name: Ensure we can still connect
-  wait_for_connection:
+  ansible.builtin.wait_for_connection:
 
 # SSH daemon configuration.
 - name: Configure SSH daemon.
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/ssh/sshd_config
     regexp: "{{ item.regexp }}"
     line: "{{ item.line }}"
@@ -86,7 +93,7 @@
 
 # Local user SSH configuration.
 - name: Configure local user .ssh directory.
-  file:
+  ansible.builtin.file:
     path: /home/{{ local_account_username }}/.ssh
     state: directory
     owner: "{{ local_account_username }}"
@@ -94,7 +101,7 @@
     mode: 0700
 
 - name: Get Vagrant's public key.
-  get_url:
+  ansible.builtin.get_url:
     url: https://github.com/hashicorp/vagrant/raw/master/keys/vagrant.pub
     dest: /home/{{ local_account_username }}/.ssh/authorized_keys
     owner: "{{ local_account_username }}"
@@ -104,7 +111,7 @@
   when: target_vagrant | bool
 
 - name: autolabel on boot
-  command: fixfiles onboot
+  ansible.builtin.command: fixfiles onboot
   changed_when: False
 
 - include_tasks: cloud-init.yml
@@ -118,7 +125,7 @@
 
 # VirtualBox tools installation.
 - name: Check if VirtualBox is running the guest VM.
-  stat:
+  ansible.builtin.stat:
     path: /home/{{ local_account_username }}/.vbox_version
   register: virtualbox_check
 
@@ -127,7 +134,7 @@
 
 # VMware tools installation.
 - name: Check if VMWare is running the guest VM.
-  shell: |
+  ansible.builtin.shell: |
     set -o pipefail
     cat /proc/scsi/scsi | grep VMware
   changed_when: false
@@ -139,7 +146,7 @@
 
 # Cleanup tasks.
 - name: Remove unneeded packages.
-  yum:
+  ansible.builtin.yum:
     name:
       - cpp
       - kernel-devel
@@ -148,39 +155,39 @@
     state: absent
 
 - name: Clean up yum.
-  command: yum clean all
+  ansible.builtin.command: yum clean all
   args:
     warn: no
   changed_when: false
 
 - name: Flag the system for re-configuration
-  file:
+  ansible.builtin.file:
     path: /.unconfigured
     state: touch
 
 - name: Reset hostname to localhost.localadmin
-  copy:
+  ansible.builtin.copy:
     content: 'localhost.localdomain'
     dest: /etc/hostname
 
 - name: Remove RedHat interface persistence (step 1).
-  file:
+  ansible.builtin.file:
     path: /etc/udev/rules.d/70-persistent-net.rules
     state: absent
 
 - name: Ensure NetworkManager config file is removed
-  file:
+  ansible.builtin.file:
     path: /etc/NetworkManager/system-connections/{{ ansible_default_ipv4.interface | default('eth0') }}.nmconnection
     state: absent
 
 - name: Check for network config file
-  stat:
+  ansible.builtin.stat:
     path: /etc/sysconfig/network-scripts/ifcfg-{{ ansible_default_ipv4.interface | default('eth0') }}
   register: network_config_file
 
 - block:
     - name: Remove RedHat interface persistence (step 2).
-      lineinfile:
+      ansible.builtin.lineinfile:
         dest: "{{ network_config_file.stat.path }}"
         regexp: "{{ item }}"
         state: absent
@@ -192,18 +199,18 @@
         - '^GATEWAY'
 
     - name: Set interface to DHCP
-      lineinfile:
+      ansible.builtin.lineinfile:
         dest: "{{ network_config_file.stat.path }}"
         regexp: '^BOOTPROTO='
         line: BOOTPROTO=dhcp
   when: network_config_file.stat.exists
 
 - name: Force logs to rotate (step 1)
-  shell: /usr/sbin/logrotate -f /etc/logrotate.conf
+  ansible.builtin.shell: /usr/sbin/logrotate -f /etc/logrotate.conf
   changed_when: false
 
 - name: Find any log files to delete
-  find:
+  ansible.builtin.find:
     paths: /var/log
     patterns:
       - "*-????????"
@@ -211,21 +218,21 @@
   register: find_log_files
 
 - name: Force logs to rotate (step 2)
-  file:
+  ansible.builtin.file:
     path: "{{ item.path }}"
     state: absent
   loop: "{{ find_log_files.files }}"
 
 - name: Clear audit log and wtmp (step 1)
-  shell: cat /dev/null > /var/log/audit/audit.log
+  ansible.builtin.shell: cat /dev/null > /var/log/audit/audit.log
   changed_when: false
 
 - name: Clear audit log and wtmp (step 2)
-  shell: cat /dev/null > /var/log/wtmp
+  ansible.builtin.shell: cat /dev/null > /var/log/wtmp
   changed_when: false
 
 - name: Remove ssh-host files
-  command: rm -fr /etc/ssh/ssh_host_*
+  ansible.builtin.command: rm -fr /etc/ssh/ssh_host_*
   changed_when: false
   args:
     warn: false

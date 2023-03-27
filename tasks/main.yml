@@ -107,7 +107,7 @@
     owner: "{{ local_account_username }}"
     group: "{{ local_account_username }}"
     mode: 0600
-  ignore_errors: yes
+  ignore_errors: true
   when: target_vagrant | bool
 
 - name: autolabel on boot
@@ -156,9 +156,8 @@
 
 - name: Clean up yum.
   ansible.builtin.command: yum clean all
-  args:
-    warn: no
   changed_when: false
+  no_log: true
 
 - name: Flag the system for re-configuration
   ansible.builtin.file:
@@ -222,6 +221,7 @@
     path: "{{ item.path }}"
     state: absent
   loop: "{{ find_log_files.files }}"
+  ignore_errors: true
 
 - name: Clear audit log and wtmp (step 1)
   ansible.builtin.shell: cat /dev/null > /var/log/audit/audit.log
@@ -234,5 +234,4 @@
 - name: Remove ssh-host files
   ansible.builtin.command: rm -fr /etc/ssh/ssh_host_*
   changed_when: false
-  args:
-    warn: false
+  no_log: true

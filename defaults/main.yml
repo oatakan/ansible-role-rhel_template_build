@@ -15,6 +15,8 @@ ovirt_guest_agent_package_name:
 
 qemu_guest_agent_package_name: qemu-guest-agent
 
+parallels_tools_iso_file: /tmp/prl-tools-lin.iso
+
 the_root_vgname: vg00
 the_root_lvname: root
 

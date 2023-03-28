@@ -144,6 +144,9 @@
 - include_tasks: vmware.yml
   when: vmware_check.rc == 0
 
+- include_tasks: parallels.yml
+  when: ('Parallels' in (ansible_product_name | default('', true))) or (ansible_product_name == None and 'Parallels' in ansible_interfaces[0].interface_name)
+
 # Cleanup tasks.
 - name: Remove unneeded packages.
   ansible.builtin.yum:

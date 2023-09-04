@@ -2,6 +2,16 @@
 
 the_root_vgname='{{ ansible_lvm.lvs[the_root_lvname].vg | default('vg00') }}'
 the_root_lvname='{{ the_root_lvname | default('root') }}'
+
+error=$(vgdisplay $the_root_vgname 2>&1 >/dev/null)
+device_name=$(echo "$error" | grep -o '/dev/[^[:space:]]*')
+
+if [[ -n "$device_name" ]]; then
+    # need to remove the lvmdevice and add it back
+    lvmdevices --yes --deldev $device_name
+    lvmdevices --yes --adddev $device_name
+fi
+
 the_root_pvname=$(vgdisplay -v $the_root_vgname 2> /dev/null | awk '/PV Name/ {print $3}')
 the_root_pv_partnum=$(echo $the_root_pvname | grep -o '[0-9]$')
 the_root_pv_device="/dev/$(lsblk -ndo PKNAME $the_root_pvname)"

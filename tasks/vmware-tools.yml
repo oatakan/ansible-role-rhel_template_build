@@ -1,65 +1,67 @@
 ---
 - name: Add VMWare tools repository.
-  template:
+  ansible.builtin.template:
     src: vmware-tools.repo.j2
     dest: /etc/yum.repos.d/vmware-tools.repo
 
 - name: Import VMWare tools GPG keys.
-  rpm_key:
+  ansible.builtin.rpm_key:
     key: "https://packages.vmware.com/tools/keys/VMWARE-PACKAGING-GPG-RSA-KEY.pub"
     state: present
 
-- name: Create temporary directories for VMware tools.
-  file:
-    path: "/tmp/{{ item }}"
-    state: directory
-  loop:
-    - vmfusion
-    - vmfusion-archive
-
-- name: Mount VMware tools.
-  mount:
-    name: /tmp/vmfusion
-    src: /home/{{ local_account_username }}/linux.iso
-    fstype: iso9660
-    opts: loop
-    state: mounted
-
-- name: Find any VMwareTools file.
-  find:
-    paths: /tmp/vmfusion
-    patterns: "^VMwareTools-*.tar.gz"
-    use_regex: yes
-  register: vmware_tools_files
-
 - block:
-    - name: Decompress VMware Tools installer into archive folder.
-      unarchive:
-        src: "{{ vmware_tools_files.files[0] }}"
-        dest: /tmp/vmfusion-archive
-        remote_src: yes
+    - name: Create temporary directories for VMware tools.
+      ansible.builtin.file:
+        path: "/tmp/{{ item }}"
+        state: directory
+      loop:
+        - vmfusion
+        - vmfusion-archive
 
-    - name: Run the VMware tools installer.
-      shell: /tmp/vmfusion-archive/vmware-tools-distrib/vmware-install.pl --default
-      changed_when: false
-  when: vmware_tools_files.matched > 0
+    - name: Mount VMware tools.
+      ansible.posix.mount:
+        name: /tmp/vmfusion
+        src: /home/{{ local_account_username }}/linux.iso
+        fstype: iso9660
+        opts: loop
+        state: mounted
 
-- name: Unmount VMware tools.
-  mount:
-    name: /tmp/vmfusion
-    src: /home/{{ local_account_username }}/linux.iso
-    fstype: iso9660
-    state: absent
+    - name: Find any VMwareTools file.
+      ansible.builtin.find:
+        paths: /tmp/vmfusion
+        patterns: "^VMwareTools-*.tar.gz"
+        use_regex: yes
+      register: vmware_tools_files
 
-- name: Remove temporary directories for VMware tools.
-  file:
-    path: "/tmp/{{ item }}"
-    state: absent
-  loop:
-    - vmfusion
-    - vmfusion-archive
+    - block:
+        - name: Decompress VMware Tools installer into archive folder.
+          ansible.builtin.unarchive:
+            src: "{{ vmware_tools_files.files[0] }}"
+            dest: /tmp/vmfusion-archive
+            remote_src: yes
 
-- name: Delete VMware Tools.
-  file:
-    path: /home/{{ local_account_username }}/linux.iso
-    state: absent
+        - name: Run the VMware tools installer.
+          ansible.builtin.shell: /tmp/vmfusion-archive/vmware-tools-distrib/vmware-install.pl --default
+          changed_when: false
+      when: vmware_tools_files.matched > 0
+
+  always:
+    - name: Unmount VMware tools.
+      ansible.posix.mount:
+        name: /tmp/vmfusion
+        src: /home/{{ local_account_username }}/linux.iso
+        fstype: iso9660
+        state: absent
+
+    - name: Remove temporary directories for VMware tools.
+      ansible.builtin.file:
+        path: "/tmp/{{ item }}"
+        state: absent
+      loop:
+        - vmfusion
+        - vmfusion-archive
+
+    - name: Delete VMware Tools.
+      ansible.builtin.file:
+        path: /home/{{ local_account_username }}/linux.iso
+        state: absent

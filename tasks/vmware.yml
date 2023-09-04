@@ -1,13 +1,13 @@
 ---
 - name: Add vmhgfs module (RHEL 6).
-  template:
+  ansible.builtin.template:
     src: vmhgfs.modules.j2
     dest: /etc/sysconfig/modules/vmhgfs.modules
     mode: 0755
   when: ansible_distribution_major_version|int <= 6
 
 - name: Install open-vm-tools.
-  yum:
+  ansible.builtin.yum:
     name: open-vm-tools
     state: present
   when: ansible_distribution_major_version|int >= 7

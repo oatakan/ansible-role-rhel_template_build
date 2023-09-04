@@ -1,21 +1,42 @@
 ---
 
 - name: ensure cloud-init packages are installed
-  package:
+  ansible.builtin.package:
     name:
       - cloud-init
       - cloud-utils-growpart
       - gdisk
 
 - block:
+    - name: check for cloud.cfg file
+      ansible.builtin.stat:
+        path: /etc/cloud/cloud.cfg
+      register: check_cloud_cfg
+
+    - block:
+        - name: ensure root login is enabled in cloud-init config
+          ansible.builtin.replace:
+            path: /etc/cloud/cloud.cfg
+            regexp: '^(disable_root\: ).*$'
+            replace: '\1false'
+
+        - name: ensure password login is enabled in cloud-init config
+          ansible.builtin.replace:
+            path: /etc/cloud/cloud.cfg
+            regexp: '^(ssh_pwauth\: ).*$'
+            replace: '\1true'
+      when: check_cloud_cfg.stat.exists
+  when: permit_root_login_with_password|bool
+
+- block:
     - name: ensure cloud-init scripts directory exists
-      file:
+      ansible.builtin.file:
         path: /var/lib/cloud/scripts/per-instance
         state: directory
         mode: '0755'
 
     - name: create growpart cloud-init script to grow partition on boot
-      template:
+      ansible.builtin.template:
         src: grow_part.sh.j2
         dest: /var/lib/cloud/scripts/per-instance/grow_part.sh
         mode: u=rwx,g=rx,o=rx

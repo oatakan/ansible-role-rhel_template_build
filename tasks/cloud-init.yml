@@ -7,6 +7,11 @@
       - cloud-utils-growpart
       - gdisk
 
+- name: enable cloud-init service
+  ansible.builtin.service:
+    name: cloud-init
+    enabled: true
+
 - block:
     - name: check for cloud.cfg file
       ansible.builtin.stat:

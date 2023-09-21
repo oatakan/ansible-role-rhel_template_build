@@ -1,19 +1,19 @@
 ---
 
-- name: import epel gpg key
-  ansible.builtin.rpm_key:
-    state: present
-    key: https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-{{ ansible_distribution_major_version }}
-  when: ansible_distribution == 'CentOS'
+- block:
+    - name: import epel gpg key
+      ansible.builtin.rpm_key:
+        state: present
+        key: https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-{{ ansible_distribution_major_version }}
 
-- name: ensure epel is installed
-  ansible.builtin.yum:
-    name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-{{ ansible_distribution_major_version }}.noarch.rpm
-    state: present
-  register: install_epel
-  until: '"error" not in install_epel'
-  retries: 5
-  delay: 10
+    - name: ensure epel is installed
+      ansible.builtin.yum:
+        name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-{{ ansible_distribution_major_version }}.noarch.rpm
+        state: present
+      register: install_epel
+      until: '"error" not in install_epel'
+      retries: 5
+      delay: 10
   when: ansible_distribution == 'CentOS'
 
 # rhevm-guest-agent-common package is not yet available for RHEL 8
@@ -23,26 +23,23 @@
   register: ovirt_package_installation
   when: ansible_distribution_major_version|int < 8
 
-# try installing qemu package on RHEL/CentOS 8 for now
 - name: ensure qemu guest agent package is installed
   ansible.builtin.package:
     name: "{{ qemu_guest_agent_package_name }}"
-  when: ansible_distribution_major_version|int == 8
+  when: ansible_distribution_major_version|int >= 8
   register: qemu_package_installation
-  ignore_errors: yes
+  ignore_errors: true
 
-- name: ensure ovirt guest agent is enabled
-  ansible.builtin.service:
-    name: "{{ ovirt_guest_agent_service_name }}"
-    enabled: yes
-  when:
-    - ansible_distribution_major_version|int < 8
-    - ovirt_package_installation is succeeded
+- block:
+    - name: ensure ovirt guest agent is enabled (RHEL < 8)
+      ansible.builtin.service:
+        name: "{{ ovirt_guest_agent_service_name }}"
+        enabled: true
+      when: ansible_distribution_major_version|int < 8
 
-- name: ensure qemu guest agent is enabled
-  ansible.builtin.service:
-    name: "{{ qemu_guest_agent_service_name }}"
-    enabled: yes
-  when:
-    - ansible_distribution_major_version|int == 8
-    - qemu_package_installation is succeeded
+    - name: ensure qemu guest agent is enabled (RHEL >= 8)
+      ansible.builtin.service:
+        name: "{{ qemu_guest_agent_service_name }}"
+        enabled: true
+      when: ansible_distribution_major_version|int >= 8
+  when: qemu_package_installation is succeeded

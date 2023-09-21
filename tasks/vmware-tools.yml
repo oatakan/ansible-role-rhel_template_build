@@ -30,7 +30,7 @@
       ansible.builtin.find:
         paths: /tmp/vmfusion
         patterns: "^VMwareTools-*.tar.gz"
-        use_regex: yes
+        use_regex: true
       register: vmware_tools_files
 
     - block:
@@ -38,7 +38,7 @@
           ansible.builtin.unarchive:
             src: "{{ vmware_tools_files.files[0] }}"
             dest: /tmp/vmfusion-archive
-            remote_src: yes
+            remote_src: true
 
         - name: Run the VMware tools installer.
           ansible.builtin.shell: /tmp/vmfusion-archive/vmware-tools-distrib/vmware-install.pl --default

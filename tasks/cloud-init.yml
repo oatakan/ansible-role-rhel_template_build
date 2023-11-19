@@ -18,13 +18,15 @@
     - cloud-final
   when: ansible_distribution_major_version|int >= 9
 
-- block:
+- name: cloud-init config
+  block:
     - name: check for cloud.cfg file
       ansible.builtin.stat:
         path: /etc/cloud/cloud.cfg
       register: check_cloud_cfg
 
-    - block:
+    - name: ensure root login
+      block:
         - name: ensure root login is enabled in cloud-init config
           ansible.builtin.replace:
             path: /etc/cloud/cloud.cfg
@@ -39,7 +41,8 @@
       when: check_cloud_cfg.stat.exists
   when: permit_root_login_with_password|bool
 
-- block:
+- name: ensure script created
+  block:
     - name: ensure cloud-init scripts directory exists
       ansible.builtin.file:
         path: /var/lib/cloud/scripts/per-instance

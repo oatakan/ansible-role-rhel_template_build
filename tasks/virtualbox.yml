@@ -8,7 +8,8 @@
   ansible.builtin.set_fact:
     virtualbox_version: "{{ get_virtualbox_version['content'] | b64decode }}"
 
-- block:
+- name: install virtualbox guest additions
+  block:
     - name: Mount VirtualBox guest additions ISO.
       ansible.posix.mount:
         name: /tmp/vbox

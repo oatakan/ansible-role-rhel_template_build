@@ -3,7 +3,7 @@
   ansible.builtin.template:
     src: vmhgfs.modules.j2
     dest: /etc/sysconfig/modules/vmhgfs.modules
-    mode: 0755
+    mode: '0755'
   when: ansible_distribution_major_version|int <= 6
 
 - name: Install open-vm-tools.
@@ -12,5 +12,6 @@
     state: present
   when: ansible_distribution_major_version|int >= 7
 
-- include_tasks: vmware-tools.yml
+- name: vmware tools installation
+  ansible.builtin.include_tasks: vmware-tools.yml
   when: ansible_distribution_major_version|int <= 6

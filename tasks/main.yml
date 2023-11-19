@@ -34,7 +34,8 @@
     state: present
   when: ansible_distribution_major_version|int < 8
 
-- block:
+- name: set python
+  block:
     - name: Ensure python3 packages are installed.
       ansible.builtin.yum:
         name:
@@ -60,6 +61,7 @@
 - name: ensure older style network config files for greater compatibility
   ansible.builtin.copy:
     dest: /etc/NetworkManager/conf.d/99-main-plugins.conf
+    mode: '0644'
     content: |
       [main]
       plugins=ifcfg-rh
@@ -98,7 +100,7 @@
     state: directory
     owner: "{{ local_account_username }}"
     group: "{{ local_account_username }}"
-    mode: 0700
+    mode: '0700'
 
 - name: Get Vagrant's public key.
   ansible.builtin.get_url:
@@ -106,21 +108,24 @@
     dest: /home/{{ local_account_username }}/.ssh/authorized_keys
     owner: "{{ local_account_username }}"
     group: "{{ local_account_username }}"
-    mode: 0600
+    mode: '0600'
   ignore_errors: true
   when: target_vagrant | bool
 
 - name: autolabel on boot
   ansible.builtin.command: fixfiles onboot
-  changed_when: False
+  changed_when: false
 
-- include_tasks: cloud-init.yml
+- name: cloud init
+  ansible.builtin.include_tasks: cloud-init.yml
   when: target_ovirt | bool
 
-- include_tasks: grow_part.yml
+- name: grow partition
+  ansible.builtin.include_tasks: grow_part.yml
   when: not (target_ovirt | bool)
 
-- include_tasks: ovirt.yml
+- name: ovirt agent
+  ansible.builtin.include_tasks: ovirt.yml
   when: target_ovirt | bool
 
 # VirtualBox tools installation.
@@ -129,7 +134,8 @@
     path: /home/{{ local_account_username }}/.vbox_version
   register: virtualbox_check
 
-- include_tasks: virtualbox.yml
+- name: virtualbox guest additions
+  ansible.builtin.include_tasks: virtualbox.yml
   when: virtualbox_check.stat.exists
 
 # VMware tools installation.
@@ -141,10 +147,13 @@
   failed_when: false
   register: vmware_check
 
-- include_tasks: vmware.yml
+- name: vmware tools
+  ansible.builtin.include_tasks: vmware.yml
   when: vmware_check.rc == 0
 
-- include_tasks: parallels.yml
+- name: parallels tools
+  ansible.builtin.include_role:
+    name: "{{ parallels_tools_role }}"
   when: ('Parallels' in (ansible_product_name | default('', true))) or (ansible_product_name == None and 'Parallels' in ansible_interfaces[0].interface_name)
 
 # Cleanup tasks.
@@ -166,11 +175,13 @@
   ansible.builtin.file:
     path: /.unconfigured
     state: touch
+    mode: '0644'
 
 - name: Reset hostname to localhost.localadmin
   ansible.builtin.copy:
     content: 'localhost.localdomain'
     dest: /etc/hostname
+    mode: '0644'
 
 - name: Remove RedHat interface persistence (step 1).
   ansible.builtin.file:
@@ -187,7 +198,8 @@
     path: /etc/sysconfig/network-scripts/ifcfg-{{ ansible_default_ipv4.interface | default('eth0') }}
   register: network_config_file
 
-- block:
+- name: Remove interface
+  block:
     - name: Remove RedHat interface persistence (step 2).
       ansible.builtin.lineinfile:
         dest: "{{ network_config_file.stat.path }}"
@@ -208,7 +220,7 @@
   when: network_config_file.stat.exists
 
 - name: Force logs to rotate (step 1)
-  ansible.builtin.shell: /usr/sbin/logrotate -f /etc/logrotate.conf
+  ansible.builtin.command: /usr/sbin/logrotate -f /etc/logrotate.conf
   changed_when: false
 
 - name: Find any log files to delete
@@ -224,7 +236,7 @@
     path: "{{ item.path }}"
     state: absent
   loop: "{{ find_log_files.files }}"
-  ignore_errors: true
+  failed_when: false
 
 - name: Clear audit log and wtmp (step 1)
   ansible.builtin.shell: cat /dev/null > /var/log/audit/audit.log

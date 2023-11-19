@@ -1,6 +1,7 @@
 ---
 
-- block:
+- name: epel
+  block:
     - name: import epel gpg key
       ansible.builtin.rpm_key:
         state: present
@@ -30,7 +31,8 @@
   register: qemu_package_installation
   ignore_errors: true
 
-- block:
+- name: enable ovirt guest agent
+  block:
     - name: ensure ovirt guest agent is enabled (RHEL < 8)
       ansible.builtin.service:
         name: "{{ ovirt_guest_agent_service_name }}"

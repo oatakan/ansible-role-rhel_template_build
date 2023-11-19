@@ -3,17 +3,20 @@
   ansible.builtin.template:
     src: vmware-tools.repo.j2
     dest: /etc/yum.repos.d/vmware-tools.repo
+    mode: '0644'
 
 - name: Import VMWare tools GPG keys.
   ansible.builtin.rpm_key:
     key: "https://packages.vmware.com/tools/keys/VMWARE-PACKAGING-GPG-RSA-KEY.pub"
     state: present
 
-- block:
+- name: Install vmware tools
+  block:
     - name: Create temporary directories for VMware tools.
       ansible.builtin.file:
         path: "/tmp/{{ item }}"
         state: directory
+        mode: '0755'
       loop:
         - vmfusion
         - vmfusion-archive
@@ -33,7 +36,8 @@
         use_regex: true
       register: vmware_tools_files
 
-    - block:
+    - name: run the installer
+      block:
         - name: Decompress VMware Tools installer into archive folder.
           ansible.builtin.unarchive:
             src: "{{ vmware_tools_files.files[0] }}"

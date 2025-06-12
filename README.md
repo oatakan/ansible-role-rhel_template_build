@@ -57,6 +57,9 @@ ansible-galaxy collection install community.docker
 molecule test
 ```
 
+The scenario uses an `ansible.cfg` that sets `remote_tmp` to `/tmp/.ansible` so
+temporary files can be created inside the container.
+
 The Molecule scenario builds a container from `quay.io/rockylinux/rockylinux:9`
 and installs `systemd` and Python so the role can run in a Docker container.
 

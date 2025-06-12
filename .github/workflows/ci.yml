@@ -37,5 +37,7 @@ jobs:
         run: ansible-playbook -i tests/inventory tests/test.yml --syntax-check
       - name: Install Molecule
         run: pip install molecule molecule-plugins[docker]
+      - name: Start Docker
+        run: sudo systemctl start docker
       - name: Test with Molecule
         run: molecule test

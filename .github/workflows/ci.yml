@@ -30,7 +30,7 @@ jobs:
           EOF
           ansible-galaxy role install -r requirements.yml -p tests/roles
       - name: Install required collections
-        run: ansible-galaxy collection install community.general
+        run: ansible-galaxy collection install community.general community.docker
       - name: Run ansible-lint
         run: ansible-lint --offline
       - name: Syntax check

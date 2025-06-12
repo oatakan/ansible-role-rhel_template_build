@@ -48,10 +48,12 @@ ansible-playbook -i tests/inventory tests/test.yml --syntax-check
 ```
 
 To execute integration tests in a containerized environment, install Molecule
-and its Docker plugin before running the tests:
+and its Docker plugin, then install the required Ansible collection before
+running the tests:
 
 ```bash
 pip install molecule molecule-plugins[docker]
+ansible-galaxy collection install community.docker
 molecule test
 ```
 

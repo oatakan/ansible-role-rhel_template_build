@@ -1,5 +1,6 @@
 ---
-- hosts: localhost
+- name: Test rhel_template_build role
+  hosts: localhost
   remote_user: root
 
   roles:

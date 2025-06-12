@@ -19,7 +19,7 @@
         fstype: iso9660
 
     - name: Run VirtualBox guest additions installation.
-      ansible.builtin.shell: sh /tmp/vbox/VBoxLinuxAdditions.run
+      ansible.builtin.shell: sh /tmp/vbox/VBoxLinuxAdditions.run  # noqa command-instead-of-shell
       changed_when: false
       failed_when: false
 

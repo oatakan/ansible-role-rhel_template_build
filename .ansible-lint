@@ -1,3 +1,5 @@
 skip_list:
   - 'name[casing]'
   - 'key-order[task]'
+exclude_paths:
+  - tests/roles/

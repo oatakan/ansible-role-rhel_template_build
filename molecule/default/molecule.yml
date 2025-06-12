@@ -17,6 +17,8 @@ platforms:
 
 provisioner:
   name: ansible
+  env:
+    ANSIBLE_CONFIG: ${MOLECULE_SCENARIO_DIRECTORY}/ansible.cfg
 
 verifier:
   name: ansible

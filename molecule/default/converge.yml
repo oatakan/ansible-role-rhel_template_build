@@ -1,7 +1,6 @@
 ---
 - name: Converge
   hosts: all
-  become: true
   vars:
     target_vagrant: false
     target_ovirt: false

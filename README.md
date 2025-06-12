@@ -57,6 +57,9 @@ ansible-galaxy collection install community.docker
 molecule test
 ```
 
+The provided Molecule scenario builds a systemd-enabled Rocky Linux 9 image
+with Python installed so the role can run inside a Docker container.
+
 ## License
 
 MIT

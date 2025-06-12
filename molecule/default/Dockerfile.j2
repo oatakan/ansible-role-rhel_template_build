@@ -1,0 +1,3 @@
+FROM quay.io/rockylinux/rockylinux:9-ubi-init
+RUN dnf -y install python3 sudo && dnf clean all
+CMD ["/usr/lib/systemd/systemd"]

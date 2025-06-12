@@ -40,11 +40,12 @@ If Parallels guest tools are required, ensure the [`oatakan.linux_parallels_tool
 ## Testing the role
 
 An automated GitHub Actions workflow runs `ansible-lint` and performs a playbook
-syntax check whenever changes are pushed. You can run the same checks locally:
+syntax check whenever changes are pushed. You can run the same checks locally by
+setting `ANSIBLE_ROLES_PATH` to point at the test roles directory:
 
 ```bash
-ansible-lint
-ansible-playbook -i tests/inventory tests/test.yml --syntax-check
+ANSIBLE_ROLES_PATH=$(pwd)/tests/roles ansible-lint --offline
+ANSIBLE_ROLES_PATH=$(pwd)/tests/roles ansible-playbook -i tests/inventory tests/test.yml --syntax-check
 ```
 
 To execute integration tests in a containerized environment, install Molecule
@@ -54,7 +55,7 @@ running the tests:
 ```bash
 pip install molecule molecule-plugins[docker]
 ansible-galaxy collection install community.docker
-molecule test
+ANSIBLE_ROLES_PATH=$(pwd)/tests/roles molecule test
 ```
 
 The scenario uses an `ansible.cfg` that sets `remote_tmp` to `/tmp/.ansible` so

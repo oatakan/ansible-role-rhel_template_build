@@ -21,8 +21,7 @@ jobs:
       - name: Install role from repository
         run: |
           cat <<EOF > requirements.yml
-          - src: https://github.com/${{ github.repository }}.git
-            scm: git
+          - src: git+https://github.com/${{ github.repository }}.git
             version: ${{ github.sha }}
             name: oatakan.rhel_template_build
           EOF

@@ -4,7 +4,7 @@
   ansible.builtin.package:
     name:
       - cloud-utils-growpart
-      - gdisk
+      - "{{ 'gdisk' if ansible_distribution_major_version|int < 10 else omit }}"
 
 - name: create growpart cloud-init script to grow partition on boot
   ansible.builtin.template:

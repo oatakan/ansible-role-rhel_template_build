@@ -61,7 +61,7 @@ ANSIBLE_ROLES_PATH=$(pwd)/tests/roles molecule test
 Docker must be installed and the Docker daemon should be running before
 executing the Molecule scenario.
 
-The scenario uses an `ansible.cfg` that sets `remote_tmp` to `/tmp` so
+The scenario uses an `ansible.cfg` that sets `remote_tmp` to `/tmp/.ansible` so
 temporary files can be created inside the container. Molecule sets the
 `ANSIBLE_CONFIG` environment variable so Ansible loads this configuration.
 

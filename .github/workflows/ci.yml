@@ -20,12 +20,7 @@ jobs:
           pip install ansible ansible-lint
       - name: Install role from repository
         run: |
-          cat <<EOF > requirements.yml
-          - src: git+https://github.com/${{ github.repository }}.git
-            version: ${{ github.sha }}
-            name: oatakan.rhel_template_build
-          EOF
-          ansible-galaxy role install -r requirements.yml
+          ansible-galaxy role install git+https://github.com/${{ github.repository }}.git,${{ github.sha }} -p tests/roles
       - name: Install required collections
         run: ansible-galaxy collection install community.general
       - name: Run ansible-lint

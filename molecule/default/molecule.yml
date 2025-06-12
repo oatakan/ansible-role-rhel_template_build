@@ -7,9 +7,9 @@ driver:
 
 platforms:
   - name: instance
-    image: quay.io/rockylinux/rockylinux:9
+    image: quay.io/rockylinux/rockylinux:9-ubi-init
     privileged: true
-    command: /usr/sbin/init
+    command: /usr/lib/systemd/systemd
     pre_build_image: true
 
 provisioner:

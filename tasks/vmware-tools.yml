@@ -45,7 +45,7 @@
             remote_src: true
 
         - name: Run the VMware tools installer.
-          ansible.builtin.shell: /tmp/vmfusion-archive/vmware-tools-distrib/vmware-install.pl --default
+          ansible.builtin.shell: /tmp/vmfusion-archive/vmware-tools-distrib/vmware-install.pl --default  # noqa command-instead-of-shell
           changed_when: false
       when: vmware_tools_files.matched > 0
 

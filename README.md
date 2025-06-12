@@ -1,39 +1,56 @@
 # oatakan.rhel_template_build
-Ansible role to configure RHEL/CentOS via Packer Ansible provisioner
 
-Requirements
-------------
+This role turns a minimal Red Hat Enterprise Linux (RHEL) or CentOS system into a golden image that can be safely cloned.  It installs common utilities, configures networking and SSH, enables cloud-init and guest agents, and then cleans the machine so copies boot as if fresh.  You can run the role with the Packer Ansible provisioner or combine it with roles like `oatakan.rhel_vcenter_template` and `oatakan.rhel_ovirt_template` when provisioning directly against your virtualization platform.
 
-Any pre-requisites that may not be covered by Ansible itself or the role should be mentioned here. For instance, if the role uses the EC2 module, it may be a good idea to mention in this section that the boto package is required.
+## Requirements
 
-Role Variables
---------------
+* Ansible 2.9 or newer
+* Root privileges on the target RHEL/CentOS system
+* Optional: access to the virtualization platform (VMware, VirtualBox, Parallels or oVirt) if the associated guest tools should be installed
 
-A description of the settable variables for this role should go here, including any variables that are in defaults/main.yml, vars/main.yml, and any variables that can/should be set via parameters to the role. Any variables that are read from other roles and/or the global scope (ie. hostvars, group vars, etc.) should be mentioned here as well.
+## Role Variables
 
-Dependencies
-------------
+The most common variables are listed below. See `defaults/main.yml` for the full list and their default values.
 
-A list of roles that this role utilizes, you can add them into your projects roles/requirements.txt:
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `target_vagrant` | `false` | When set to `true`, the Vagrant public key is installed for the local user. |
+| `target_ovirt` | `false` | Enables cloud-init setup and installs the oVirt/QEMU guest agent. |
+| `local_account_username` | `ansible` | User name that owns downloaded ISOs and receives the Vagrant key. |
+| `permit_root_login_with_password` | `true` | Allows password based root logins in cloud-init configuration. |
+| `parallels_tools_role` | `oatakan.linux_parallels_tools` | Role used to install Parallels guest tools when Parallels is detected. |
 
-- oatakan.linux_parallels_tools # only required if running on a parallels VM on a desktop
+## Dependencies
 
-Example Playbook
-----------------
+If Parallels guest tools are required, ensure the [`oatakan.linux_parallels_tools`](https://galaxy.ansible.com/oatakan/linux_parallels_tools) role is available. No other external roles are required.
 
-Including an example of how to use your role (for instance, with variables passed in as parameters) is always nice for users too:
+## Example Playbook
 
-    - hosts: servers
-      roles:
-         - oatakan.rhel_template_build
+```yaml
+- name: Build RHEL template
+  hosts: build_host
+  become: true
+  roles:
+    - role: oatakan.rhel_template_build
+      vars:
+        target_vagrant: true
+        target_ovirt: false
+```
 
-License
--------
+## Testing the role
+
+An automated GitHub Actions workflow runs `ansible-lint` and performs a playbook
+syntax check whenever changes are pushed. You can run the same checks locally:
+
+```bash
+ansible-lint
+ansible-playbook -i tests/inventory tests/test.yml --syntax-check
+```
+
+## License
 
 MIT
 
-Author Information
-------------------
+## Author Information
 
 Orcun Atakan
-

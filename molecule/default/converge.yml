@@ -1,0 +1,10 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    target_vagrant: false
+    target_ovirt: false
+    local_account_username: root
+  roles:
+    - role: oatakan.rhel_template_build

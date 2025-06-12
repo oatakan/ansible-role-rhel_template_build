@@ -47,6 +47,14 @@ ansible-lint
 ansible-playbook -i tests/inventory tests/test.yml --syntax-check
 ```
 
+To execute integration tests in a containerized environment, install Molecule
+with the Docker driver and run:
+
+```bash
+pip install 'molecule[docker]'
+molecule test
+```
+
 ## License
 
 MIT

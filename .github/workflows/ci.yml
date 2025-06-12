@@ -35,3 +35,7 @@ jobs:
         run: ansible-lint --offline
       - name: Syntax check
         run: ansible-playbook -i tests/inventory tests/test.yml --syntax-check
+      - name: Install Molecule
+        run: pip install 'molecule[docker]'
+      - name: Test with Molecule
+        run: molecule test

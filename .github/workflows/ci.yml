@@ -106,6 +106,7 @@ jobs:
         run: |
           molecule test
         env:
+          ANSIBLE_ROLES_PATH: ${{ github.workspace }}/tests/roles
           MOLECULE_DISTRO: ${{ matrix.distro }}
 
   # Optional: Test with Vagrant (requires self-hosted runner with virtualization)

@@ -66,9 +66,10 @@ RUN find /etc/systemd/system \
     -o -name '*systemd-machine-id*' \) \
     -exec rm -f {} \;
 
-# Remove additional problematic units for containers
-RUN systemctl set-default multi-user.target && \
-    systemctl mask \
+# Set default target and mask problematic services manually (without systemctl)
+RUN rm -f /etc/systemd/system/default.target && \
+    ln -sf /lib/systemd/system/multi-user.target /etc/systemd/system/default.target && \
+    for service in \
         dev-hugepages.mount \
         sys-fs-fuse-connections.mount \
         systemd-update-utmp.service \
@@ -76,14 +77,16 @@ RUN systemctl set-default multi-user.target && \
         console-getty.service \
         systemd-logind.service \
         getty.target \
-        systemd-remount-fs.service
+        systemd-remount-fs.service; do \
+        ln -sf /dev/null /etc/systemd/system/$service || true; \
+    done
 
 # Configure SSH for testing
 RUN ssh-keygen -A && \
     sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
     sed -i 's/#UseDNS yes/UseDNS no/' /etc/ssh/sshd_config && \
     sed -i 's/#GSSAPIAuthentication yes/GSSAPIAuthentication no/' /etc/ssh/sshd_config && \
-    systemctl enable sshd
+    ln -sf /usr/lib/systemd/system/sshd.service /etc/systemd/system/multi-user.target.wants/sshd.service
 
 # Create required directories and set permissions
 RUN mkdir -p /tmp /var/tmp /run /run/lock && \
@@ -100,23 +103,9 @@ RUN mkdir -p /etc/systemd/system/multi-user.target.wants \
 # Ensure proper permissions for systemd
 RUN chmod 755 /etc/systemd/system
 
-# Create a simple init script for better container startup
-RUN echo '#!/bin/bash' > /usr/local/bin/container-init && \
-    echo 'set -e' >> /usr/local/bin/container-init && \
-    echo 'if [ "$1" = "/usr/sbin/init" ]; then' >> /usr/local/bin/container-init && \
-    echo '    exec /usr/sbin/init --show-status=false --unit=multi-user.target' >> /usr/local/bin/container-init && \
-    echo 'else' >> /usr/local/bin/container-init && \
-    echo '    exec "$@"' >> /usr/local/bin/container-init && \
-    echo 'fi' >> /usr/local/bin/container-init && \
-    chmod +x /usr/local/bin/container-init
-
 # Ensure Python is working correctly
 RUN python3 -c "import sys; print(sys.version)" && \
     python3 -c "import subprocess; print('Python setup OK')"
-
-# Add a health check to ensure the container is ready
-HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=3 \
-    CMD systemctl is-system-running --quiet || systemctl is-system-running --quiet --state=degraded
 
 # Set working directory
 WORKDIR /
@@ -124,6 +113,5 @@ WORKDIR /
 # Mount points for proper systemd operation
 VOLUME ["/sys/fs/cgroup", "/tmp", "/run"]
 
-# Use our custom init script
-ENTRYPOINT ["/usr/local/bin/container-init"]
+# Use standard systemd init
 CMD ["/usr/sbin/init"]

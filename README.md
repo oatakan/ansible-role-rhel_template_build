@@ -1,5 +1,10 @@
 # oatakan.rhel_template_build
 
+[![CI](https://github.com/oatakan/ansible-role-rhel_template_build/actions/workflows/ci.yml/badge.svg)](https://github.com/oatakan/ansible-role-rhel_template_build/actions/workflows/ci.yml)
+[![VM Tests](https://github.com/oatakan/ansible-role-rhel_template_build/actions/workflows/vm-test.yml/badge.svg)](https://github.com/oatakan/ansible-role-rhel_template_build/actions/workflows/vm-test.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Ansible Role](https://img.shields.io/ansible/role/d/oatakan/rhel_template_build)](https://galaxy.ansible.com/oatakan/rhel_template_build)
+
 This role turns a minimal Red Hat Enterprise Linux (RHEL) or CentOS system into a golden image that can be safely cloned.  It installs common utilities, configures networking and SSH, enables cloud-init and guest agents, and then cleans the machine so copies boot as if fresh.  You can run the role with the Packer Ansible provisioner or combine it with roles like `oatakan.rhel_vcenter_template` and `oatakan.rhel_ovirt_template` when provisioning directly against your virtualization platform.
 
 ## Requirements

@@ -1,3 +1,71 @@
-FROM quay.io/rockylinux/rockylinux:9
-RUN dnf -y install systemd python3 sudo && dnf clean all
+FROM {{ item.image }}
+
+{% if '8' in item.image %}
+# Rocky Linux 8 specific setup
+RUN dnf -y install \
+    systemd \
+    systemd-libs \
+    python3 \
+    python3-pip \
+    python3-setuptools \
+    python3-wheel \
+    platform-python-pip \
+    sudo \
+    which \
+    hostname \
+    procps-ng \
+    iproute \
+    openssh-server \
+    openssh-clients \
+    passwd \
+    && dnf clean all && \
+    alternatives --set python /usr/bin/python3 && \
+    alternatives --install /usr/bin/pip pip /usr/bin/pip3 1
+
+{% else %}
+# Rocky/Alma Linux 9+ setup
+RUN dnf -y install \
+    systemd \
+    systemd-libs \
+    python3 \
+    python3-pip \
+    sudo \
+    which \
+    hostname \
+    procps-ng \
+    iproute \
+    openssh-server \
+    openssh-clients \
+    passwd \
+    && dnf clean all
+{% endif %}
+
+# Configure SSH for testing (if needed)
+RUN ssh-keygen -A && \
+    sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#UseDNS yes/UseDNS no/' /etc/ssh/sshd_config && \
+    systemctl enable sshd
+
+# Remove some systemd units that might cause issues in containers
+RUN (cd /lib/systemd/system/sysinit.target.wants/; for i in *; do [ $i == systemd-tmpfiles-setup.service ] || rm -f $i; done); \
+    rm -f /lib/systemd/system/multi-user.target.wants/*; \
+    rm -f /etc/systemd/system/*.wants/*; \
+    rm -f /lib/systemd/system/local-fs.target.wants/*; \
+    rm -f /lib/systemd/system/sockets.target.wants/*udev*; \
+    rm -f /lib/systemd/system/sockets.target.wants/*initctl*; \
+    rm -f /lib/systemd/system/basic.target.wants/*; \
+    rm -f /lib/systemd/system/anaconda.target.wants/*;
+
+# Create required directories and set permissions
+RUN mkdir -p /tmp && chmod 1777 /tmp && \
+    mkdir -p /var/tmp && chmod 1777 /var/tmp && \
+    mkdir -p /run && chmod 755 /run
+
+# Ensure Python is working
+RUN python3 -c "import sys; print(sys.version)"
+
+# Mount required cgroups
+VOLUME [ "/sys/fs/cgroup", "/tmp", "/run" ]
+
+# Set default command
 CMD ["/usr/sbin/init"]

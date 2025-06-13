@@ -1,9 +1,47 @@
 ---
 - name: Converge
   hosts: all
+  become: true
   vars:
+    # Override variables for container testing
     target_vagrant: false
     target_ovirt: false
-    local_account_username: root
+    local_account_username: root # Use root in containers
+    # Disable virtualization-specific tasks in containers
+    ansible_virtualization_type: docker
+    ansible_virtualization_role: guest
+
+  pre_tasks:
+    - name: Update package cache
+      ansible.builtin.package:
+        update_cache: true
+      when: ansible_os_family == "RedHat"
+
+    - name: Ensure required packages for testing
+      ansible.builtin.package:
+        name:
+          - python3
+          - sudo
+          - openssh-server
+        state: present
+
+    # Mock some expected facts that might not be available in containers
+    - name: Set mock facts for container environment
+      ansible.builtin.set_fact:
+        kernel_release:
+          stdout: "{{ ansible_kernel }}"
+        ansible_lvm:
+          lvs:
+            root:
+              vg: vg00
+          vgs: {}
+          pvs: {}
+      when: ansible_virtualization_type == "docker"
+
   roles:
     - role: oatakan.rhel_template_build
+
+  post_tasks:
+    - name: Verify role execution
+      ansible.builtin.debug:
+        msg: "Role executed successfully in container environment"

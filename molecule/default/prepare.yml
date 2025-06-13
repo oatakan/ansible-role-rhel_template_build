@@ -1,0 +1,62 @@
+---
+- name: Prepare
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Set local account username
+      set_fact:
+        local_account_username: "{{ local_account_username | default('root') }}"
+
+    - name: Ensure /tmp has correct permissions
+      file:
+        path: /tmp
+        state: directory
+        mode: '1777'
+
+    - name: Create mock files for virtualization detection
+      file:
+        path: "{{ item }}"
+        state: touch
+        mode: '0644'
+      loop:
+        - /proc/scsi/scsi
+      failed_when: false
+
+    - name: Install additional packages for role testing
+      package:
+        name:
+          - NetworkManager
+          - network-scripts
+          - cloud-init
+          - cloud-utils-growpart
+        state: present
+      failed_when: false
+      when: ansible_distribution_major_version | int >= 8
+
+    - name: Start and enable NetworkManager
+      systemd:
+        name: NetworkManager
+        state: started
+        enabled: true
+        daemon_reload: true
+      failed_when: false
+      when: ansible_distribution_major_version | int >= 8
+
+    - name: Create mock network configuration
+      copy:
+        dest: /etc/sysconfig/network
+        content: |
+          NETWORKING=yes
+          HOSTNAME=localhost.localdomain
+        mode: '0644'
+
+    - name: Ensure SSH directory exists for local user
+      file:
+        path: /home/{{ local_account_username }}/.ssh
+        state: directory
+        owner: "{{ local_account_username }}"
+        group: "{{ local_account_username }}"
+        mode: '0700'
+      when: local_account_username in ansible_facts.getent_passwd

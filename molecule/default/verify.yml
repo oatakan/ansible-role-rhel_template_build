@@ -1,0 +1,80 @@
+---
+- name: Verify
+  hosts: all
+  gather_facts: true
+  become: true
+
+  tasks:
+    - name: Set local account username
+      set_fact:
+        local_account_username: "{{ local_account_username | default('root') }}"
+
+    - name: Check if required packages are installed
+      package:
+        name: "{{ item }}"
+        state: present
+      check_mode: true
+      register: package_check
+      failed_when: package_check.changed
+      loop:
+        - wget
+        - perl
+        - cifs-utils
+
+    - name: Verify SSH configuration
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        line: "{{ item }}"
+        state: present
+      check_mode: true
+      register: ssh_check
+      failed_when: ssh_check.changed
+      loop:
+        - 'UseDNS no'
+        - 'GSSAPIAuthentication no'
+
+    - name: Check if local user exists
+      getent:
+        database: passwd
+        key: "{{ local_account_username }}"
+      register: user_check
+      failed_when: false
+
+    - name: Check if .ssh directory exists for local user
+      stat:
+        path: "/home/{{ local_account_username }}/.ssh"
+      register: ssh_dir
+      failed_when:
+        - not ssh_dir.stat.exists
+        - user_check.ansible_facts is defined
+
+    - name: Verify hostname was reset
+      slurp:
+        src: /etc/hostname
+      register: hostname_content
+      failed_when: "'localhost.localdomain' not in hostname_content.content | b64decode"
+
+    - name: Check network configuration
+      stat:
+        path: /etc/sysconfig/network
+      register: network_config
+      failed_when: not network_config.stat.exists
+
+    - name: Verify slow DNS fix
+      lineinfile:
+        path: /etc/sysconfig/network
+        line: 'RES_OPTIONS="single-request-reopen"'
+        state: present
+      check_mode: true
+      register: dns_fix
+      failed_when: dns_fix.changed
+
+    - name: Display test summary
+      debug:
+        msg: |
+          Role verification completed successfully!
+          - Packages installed: ✓
+          - SSH configured: ✓
+          - User directories created: ✓
+          - Hostname reset: ✓
+          - Network configured: ✓

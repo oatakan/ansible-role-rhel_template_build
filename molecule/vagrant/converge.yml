@@ -10,7 +10,7 @@
 
   pre_tasks:
     - name: Update package cache
-      package:
+      ansible.builtin.package:
         update_cache: true
       when: ansible_os_family == "RedHat"
 
@@ -19,13 +19,13 @@
 
   post_tasks:
     - name: Verify Vagrant public key was installed
-      stat:
+      ansible.builtin.stat:
         path: /home/vagrant/.ssh/authorized_keys
       register: vagrant_key
       failed_when: not vagrant_key.stat.exists
 
     - name: Verify SSH configuration
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: /etc/ssh/sshd_config
         line: "{{ item }}"
         state: present
@@ -33,5 +33,5 @@
       register: ssh_config
       failed_when: ssh_config.changed
       loop:
-        - 'UseDNS no'
-        - 'GSSAPIAuthentication no'
+        - "UseDNS no"
+        - "GSSAPIAuthentication no"

@@ -6,11 +6,11 @@
 
   tasks:
     - name: Set local account username
-      set_fact:
+      ansible.builtin.set_fact:
         local_account_username: "{{ local_account_username | default('root') }}"
 
     - name: Check if required packages are installed
-      package:
+      ansible.builtin.package:
         name: "{{ item }}"
         state: present
       check_mode: true
@@ -22,7 +22,7 @@
         - cifs-utils
 
     - name: Verify SSH configuration
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: /etc/ssh/sshd_config
         line: "{{ item }}"
         state: present
@@ -30,18 +30,18 @@
       register: ssh_check
       failed_when: ssh_check.changed
       loop:
-        - 'UseDNS no'
-        - 'GSSAPIAuthentication no'
+        - "UseDNS no"
+        - "GSSAPIAuthentication no"
 
     - name: Check if local user exists
-      getent:
+      ansible.builtin.getent:
         database: passwd
         key: "{{ local_account_username }}"
       register: user_check
       failed_when: false
 
     - name: Check if .ssh directory exists for local user
-      stat:
+      ansible.builtin.stat:
         path: "/home/{{ local_account_username }}/.ssh"
       register: ssh_dir
       failed_when:
@@ -49,19 +49,19 @@
         - user_check.ansible_facts is defined
 
     - name: Verify hostname was reset
-      slurp:
+      ansible.builtin.slurp:
         src: /etc/hostname
       register: hostname_content
       failed_when: "'localhost.localdomain' not in hostname_content.content | b64decode"
 
     - name: Check network configuration
-      stat:
+      ansible.builtin.stat:
         path: /etc/sysconfig/network
       register: network_config
       failed_when: not network_config.stat.exists
 
     - name: Verify slow DNS fix
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: /etc/sysconfig/network
         line: 'RES_OPTIONS="single-request-reopen"'
         state: present
@@ -70,7 +70,7 @@
       failed_when: dns_fix.changed
 
     - name: Display test summary
-      debug:
+      ansible.builtin.debug:
         msg: |
           Role verification completed successfully!
           - Packages installed: ✓

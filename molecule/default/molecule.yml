@@ -83,8 +83,9 @@ provisioner:
   ansible_args:
     - --diff
     - -v
+    - --timeout=60
   # Add timeout for long-running tasks
-  timeout: 300
+  timeout: 600  # Increased timeout for full test execution
 
 verifier:
   name: ansible

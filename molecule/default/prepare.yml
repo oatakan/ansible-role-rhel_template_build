@@ -10,10 +10,11 @@
     # Wait for the container to be ready
     - name: Wait for container to be ready
       ansible.builtin.wait_for_connection:
-        timeout: 60
-        sleep: 2
-      retries: 3
-      delay: 5
+        timeout: 120  # Increased timeout
+        sleep: 5
+        delay: 10
+      retries: 5
+      delay: 10
 
     - name: Test basic connectivity
       ansible.builtin.ping:

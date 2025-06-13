@@ -2,30 +2,58 @@
 - name: Prepare
   hosts: all
   become: true
-  gather_facts: true
+  gather_facts: false  # Don't gather facts initially
+
+  pre_tasks:
+    - name: Install Python if not present
+      raw: |
+        if ! command -v python3 &> /dev/null; then
+          dnf install -y python3 python3-pip
+        fi
+      changed_when: false
+
+    - name: Ensure Python symlink exists
+      raw: |
+        if [ ! -e /usr/bin/python ]; then
+          alternatives --set python /usr/bin/python3 2>/dev/null || \
+          ln -sf /usr/bin/python3 /usr/bin/python
+        fi
+      changed_when: false
+
+    - name: Gather facts after Python is ready
+      setup:
 
   tasks:
     - name: Set local account username
-      ansible.builtin.set_fact:
+      set_fact:
         local_account_username: "{{ local_account_username | default('root') }}"
 
     - name: Ensure /tmp has correct permissions
-      ansible.builtin.file:
+      file:
         path: /tmp
         state: directory
-        mode: "1777"
+        mode: '1777'
+
+    - name: Install required Python packages for RHEL 8
+      package:
+        name:
+          - platform-python
+          - python3-libselinux
+        state: present
+      when: ansible_distribution_major_version | int == 8
+      failed_when: false
 
     - name: Create mock files for virtualization detection
-      ansible.builtin.file:
+      file:
         path: "{{ item }}"
         state: touch
-        mode: "0644"
+        mode: '0644'
       loop:
         - /proc/scsi/scsi
       failed_when: false
 
     - name: Install additional packages for role testing
-      ansible.builtin.package:
+      package:
         name:
           - NetworkManager
           - network-scripts
@@ -36,7 +64,7 @@
       when: ansible_distribution_major_version | int >= 8
 
     - name: Start and enable NetworkManager
-      ansible.builtin.systemd:
+      systemd:
         name: NetworkManager
         state: started
         enabled: true
@@ -45,18 +73,18 @@
       when: ansible_distribution_major_version | int >= 8
 
     - name: Create mock network configuration
-      ansible.builtin.copy:
+      copy:
         dest: /etc/sysconfig/network
         content: |
           NETWORKING=yes
           HOSTNAME=localhost.localdomain
-        mode: "0644"
+        mode: '0644'
 
     - name: Ensure SSH directory exists for local user
-      ansible.builtin.file:
+      file:
         path: /home/{{ local_account_username }}/.ssh
         state: directory
         owner: "{{ local_account_username }}"
         group: "{{ local_account_username }}"
-        mode: "0700"
+        mode: '0700'
       when: local_account_username in ansible_facts.getent_passwd

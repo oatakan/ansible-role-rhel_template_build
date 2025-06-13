@@ -40,9 +40,10 @@ provisioner:
     host_vars:
       instance:
         ansible_user: root
+        ansible_python_interpreter: /usr/bin/python3
   env:
-    ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/tests/roles
     ANSIBLE_CONFIG: ${MOLECULE_SCENARIO_DIRECTORY}/ansible.cfg
+    ANSIBLE_HOST_KEY_CHECKING: false
   playbooks:
     prepare: ${MOLECULE_SCENARIO_DIRECTORY}/prepare.yml
     converge: ${MOLECULE_SCENARIO_DIRECTORY}/converge.yml

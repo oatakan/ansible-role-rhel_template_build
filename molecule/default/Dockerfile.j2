@@ -1,128 +1,63 @@
 FROM {{ item.image }}
 
-# Set environment variables
+# Basic environment
 ENV container=docker
-ENV SYSTEMD_UNIT_PATH=/etc/systemd/system
 ENV LANG=C.UTF-8
-ENV LC_ALL=C.UTF-8
 
 {% if '8' in item.image %}
-# Rocky/Alma Linux 8 setup
+# Rocky/Alma Linux 8 packages
 RUN dnf -y update --nogpgcheck --skip-broken && \
     dnf -y install --nogpgcheck --skip-broken \
-    systemd \
-    systemd-libs \
-    systemd-udev \
-    python3 \
-    python3-pip \
-    python3-setuptools \
-    python3-wheel \
-    platform-python-pip \
-    sudo \
-    which \
-    hostname \
-    procps-ng \
-    iproute \
-    openssh-server \
-    openssh-clients \
-    passwd \
-    initscripts \
-    NetworkManager \
-    glibc-common \
-    && dnf clean all && \
-    (alternatives --set python /usr/bin/python3 || ln -sf /usr/bin/python3 /usr/bin/python) && \
-    (alternatives --install /usr/bin/pip pip /usr/bin/pip3 1 || true)
+        systemd \
+        python3 \
+        openssh-server \
+        sudo \
+        passwd \
+        which \
+        hostname \
+    && dnf clean all
 
 {% else %}
-# Rocky/Alma Linux 9+ setup with enhanced SSH configuration
+# Rocky/Alma Linux 9 packages
 RUN dnf -y update --nogpgcheck --skip-broken && \
     dnf -y install --nogpgcheck --skip-broken \
-    systemd \
-    systemd-libs \
-    systemd-udev \
-    python3 \
-    python3-pip \
-    sudo \
-    which \
-    hostname \
-    procps-ng \
-    iproute \
-    openssh-server \
-    openssh-clients \
-    passwd \
-    NetworkManager \
-    glibc-common \
-    coreutils \
+        systemd \
+        python3 \
+        openssh-server \
+        sudo \
+        passwd \
+        which \
+        hostname \
     && dnf clean all
 {% endif %}
 
-# Enhanced systemd cleanup for better reliability
-RUN find /etc/systemd/system \
-         /lib/systemd/system \
-         \( -path '*.wants/*' \
-         -name '*sockets.target*' \
-         -o -name '*udev*' \
-         -o -name '*initctl*' \
-         -o -name '*systemd-tmpfiles*' \
-         -o -name '*systemd-machine-id*' \) \
-         -exec rm -f {} \; || true
+# Basic systemd cleanup
+RUN find /etc/systemd/system /lib/systemd/system \
+    -path '*.wants/*' \
+    \( -name '*getty*' -o -name '*systemd-tmpfiles*' -o -name '*systemd-update-utmp*' \) \
+    -exec rm -f {} + 2>/dev/null || true
 
-# Configure systemd targets
-RUN rm -f /etc/systemd/system/default.target && \
-    ln -sf /lib/systemd/system/multi-user.target /etc/systemd/system/default.target && \
-    for service in \
-        dev-hugepages.mount \
-        sys-fs-fuse-connections.mount \
-        systemd-update-utmp.service \
-        systemd-tmpfiles-setup-dev.service \
-        console-getty.service \
-        systemd-logind.service \
-        getty.target \
-        systemd-remount-fs.service; do \
-        ln -sf /dev/null /etc/systemd/system/$service || true; \
-    done
-
-{% if '9' in item.image %}
-# Enhanced SSH setup for Rocky/Alma 9
-RUN ssh-keygen -A && \
+# Configure SSH (simple approach that works for all versions)
+RUN ssh-keygen -A -q && \
     echo 'root:root' | chpasswd && \
-    sed -i 's/#Port 22/Port 22/' /etc/ssh/sshd_config && \
-    sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config && \
-    sed -i 's/#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
-    sed -i 's/#UseDNS.*/UseDNS no/' /etc/ssh/sshd_config && \
-    sed -i 's/#GSSAPIAuthentication.*/GSSAPIAuthentication no/' /etc/ssh/sshd_config && \
-    sed -i 's/#PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config && \
-    mkdir -p /etc/systemd/system/multi-user.target.wants && \
-    mkdir -p /var/run/sshd && \
-    ln -sf /usr/lib/systemd/system/sshd.service /etc/systemd/system/multi-user.target.wants/sshd.service && \
-    systemctl enable sshd
+    echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config && \
+    echo 'PasswordAuthentication yes' >> /etc/ssh/sshd_config && \
+    echo 'UseDNS no' >> /etc/ssh/sshd_config && \
+    mkdir -p /var/run/sshd
 
-{% else %}
-# Standard SSH setup for Rocky/Alma 8
-RUN ssh-keygen -A && \
-    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
-    sed -i 's/#UseDNS yes/UseDNS no/' /etc/ssh/sshd_config && \
-    sed -i 's/#GSSAPIAuthentication yes/GSSAPIAuthentication no/' /etc/ssh/sshd_config && \
-    mkdir -p /etc/systemd/system/multi-user.target.wants && \
-    ln -sf /usr/lib/systemd/system/sshd.service /etc/systemd/system/multi-user.target.wants/sshd.service && \
-    echo 'root:root' | chpasswd
-{% endif %}
+# Manual SSH service enabling (works in containers)
+RUN mkdir -p /etc/systemd/system/multi-user.target.wants && \
+    find /usr/lib/systemd/system /lib/systemd/system -name 'ssh*.service' -type f | head -1 | \
+    xargs -I {} ln -sf {} /etc/systemd/system/multi-user.target.wants/ 2>/dev/null || true
 
-# Create required directories (excluding read-only mounts)
+# Create basic directories
 RUN mkdir -p /tmp /var/tmp /run /run/lock && \
     chmod 1777 /tmp /var/tmp /run/lock && \
     chmod 755 /run
 
-# Test connectivity components
-RUN python3 --version && \
-    systemctl --version && \
-    ssh -V
+# Test that everything is installed correctly
+RUN python3 --version && ssh -V
 
-# Volume mounts for systemd
 VOLUME ["/sys/fs/cgroup"]
-
-# Expose SSH port
 EXPOSE 22
-
-# Use systemd as init
 CMD ["/usr/sbin/init"]

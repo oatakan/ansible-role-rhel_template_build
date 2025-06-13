@@ -3,8 +3,8 @@
   hosts: all
   gather_facts: false
   tasks:
-    # Enhanced wait strategy for container readiness
-    - name: Wait for systemd to start
+    # Wait for SSH port to be available
+    - name: Wait for SSH port
       ansible.builtin.wait_for:
         port: 22
         host: "{{ ansible_host | default(inventory_hostname) }}"
@@ -14,37 +14,21 @@
       retries: 3
       delay: 10
 
-    # Give SSH service more time to fully initialize
-    - name: Wait for SSH service initialization
-      ansible.builtin.pause:
-        seconds: 15
-      when: ansible_distribution_major_version | int >= 9
-
-    - name: Wait for container SSH service
+    # Simple connection test with retries
+    - name: Wait for SSH connection
       ansible.builtin.wait_for_connection:
-        timeout: 180  # Increased timeout for v9
-        sleep: 10     # Longer sleep between attempts
-        delay: 15     # More initial delay
+        timeout: 120
+        sleep: 10
+        delay: 15
       retries: 5
-      delay: 20
+      delay: 15
 
-    # Alternative connection method if direct fails
-    - name: Test basic connectivity with ping
+    # Test basic connectivity
+    - name: Test basic connectivity
       ansible.builtin.ping:
-      register: ping_result
       retries: 3
-      delay: 10
-      until: ping_result is succeeded
+      delay: 5
 
-    # Ensure SSH service is running
-    - name: Start SSH service if needed
-      ansible.builtin.systemd:
-        name: sshd
-        state: started
-        enabled: true
-      failed_when: false
-
-    # Final connectivity verification
-    - name: Verify container is ready for testing
-      ansible.builtin.command: echo "Container ready"
-      changed_when: false
+    - name: Container ready
+      ansible.builtin.debug:
+        msg: "Container is ready for testing"

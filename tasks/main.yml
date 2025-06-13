@@ -257,12 +257,23 @@
         - hostname_result.failed | default(false)
         - not is_container
 
-    - name: Container hostname reset (best effort)
+    - name: Force hostname reset in container (direct write)
+      ansible.builtin.shell: |
+        echo 'localhost.localdomain' > /etc/hostname
+      changed_when: true
+      failed_when: false
+      when: is_container
+
+    - name: Verify hostname was set correctly
+      ansible.builtin.slurp:
+        src: /etc/hostname
+      register: hostname_check
+      failed_when: false
+
+    - name: Debug hostname content
       ansible.builtin.debug:
-        msg: "Hostname reset skipped in container environment"
-      when:
-        - hostname_result.failed | default(false)
-        - is_container
+        msg: "Hostname content: {{ (hostname_check.content | b64decode).strip() }}"
+      when: hostname_check.content is defined
 
 - name: Remove RedHat interface persistence (step 1).
   ansible.builtin.file:

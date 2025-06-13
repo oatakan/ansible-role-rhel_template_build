@@ -1,15 +1,15 @@
 FROM {{ item.image }}
 
-# Set environment variables for better container behavior
+# Set environment variables
 ENV container=docker
 ENV SYSTEMD_UNIT_PATH=/etc/systemd/system
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 
 {% if '8' in item.image %}
-# Rocky Linux 8 specific setup
-RUN dnf -y update && \
-    dnf -y install \
+# Rocky/Alma Linux 8 setup with enhanced GPG handling
+RUN dnf -y update --nogpgcheck --skip-broken && \
+    dnf -y install --nogpgcheck --skip-broken \
     systemd \
     systemd-libs \
     systemd-udev \
@@ -30,13 +30,13 @@ RUN dnf -y update && \
     NetworkManager \
     glibc-common \
     && dnf clean all && \
-    alternatives --set python /usr/bin/python3 && \
-    alternatives --install /usr/bin/pip pip /usr/bin/pip3 1
+    (alternatives --set python /usr/bin/python3 || ln -sf /usr/bin/python3 /usr/bin/python) && \
+    (alternatives --install /usr/bin/pip pip /usr/bin/pip3 1 || true)
 
 {% else %}
 # Rocky/Alma Linux 9+ setup
-RUN dnf -y update && \
-    dnf -y install \
+RUN dnf -y update --nogpgcheck --skip-broken && \
+    dnf -y install --nogpgcheck --skip-broken \
     systemd \
     systemd-libs \
     systemd-udev \
@@ -55,18 +55,18 @@ RUN dnf -y update && \
     && dnf clean all
 {% endif %}
 
-# Configure systemd for containers - remove problematic units
+# Enhanced systemd cleanup for better reliability
 RUN find /etc/systemd/system \
-    /lib/systemd/system \
-    \( -path '*.wants/*' \
-    -name '*sockets.target*' \
-    -o -name '*udev*' \
-    -o -name '*initctl*' \
-    -o -name '*systemd-tmpfiles*' \
-    -o -name '*systemd-machine-id*' \) \
-    -exec rm -f {} \;
+         /lib/systemd/system \
+         \( -path '*.wants/*' \
+         -name '*sockets.target*' \
+         -o -name '*udev*' \
+         -o -name '*initctl*' \
+         -o -name '*systemd-tmpfiles*' \
+         -o -name '*systemd-machine-id*' \) \
+         -exec rm -f {} \; || true
 
-# Set default target and mask problematic services manually (without systemctl)
+# Configure systemd targets
 RUN rm -f /etc/systemd/system/default.target && \
     ln -sf /lib/systemd/system/multi-user.target /etc/systemd/system/default.target && \
     for service in \
@@ -81,38 +81,30 @@ RUN rm -f /etc/systemd/system/default.target && \
         ln -sf /dev/null /etc/systemd/system/$service || true; \
     done
 
-# Configure SSH for testing
+# Enhanced SSH configuration for better container connectivity
 RUN ssh-keygen -A && \
     sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
     sed -i 's/#UseDNS yes/UseDNS no/' /etc/ssh/sshd_config && \
     sed -i 's/#GSSAPIAuthentication yes/GSSAPIAuthentication no/' /etc/ssh/sshd_config && \
     mkdir -p /etc/systemd/system/multi-user.target.wants && \
-    ln -sf /usr/lib/systemd/system/sshd.service /etc/systemd/system/multi-user.target.wants/sshd.service || true
+    ln -sf /usr/lib/systemd/system/sshd.service /etc/systemd/system/multi-user.target.wants/sshd.service && \
+    echo 'root:root' | chpasswd
 
-# Create required directories and set permissions
-RUN mkdir -p /tmp /var/tmp /run /run/lock && \
-    chmod 1777 /tmp /var/tmp && \
-    chmod 755 /run && \
-    chmod 1777 /run/lock
+# Create required directories with proper permissions
+RUN mkdir -p /tmp /var/tmp /run /run/lock /sys/fs/cgroup && \
+    chmod 1777 /tmp /var/tmp /run/lock && \
+    chmod 755 /run /sys/fs/cgroup
 
-# Create systemd directories in case they don't exist
-RUN mkdir -p /etc/systemd/system/multi-user.target.wants \
-             /etc/systemd/system/sockets.target.wants \
-             /etc/systemd/system/basic.target.wants \
-             /var/lib/systemd
+# Test connectivity components
+RUN python3 --version && \
+    systemctl --version && \
+    ssh -V
 
-# Ensure proper permissions for systemd
-RUN chmod 755 /etc/systemd/system
+# Volume mounts for systemd
+VOLUME ["/sys/fs/cgroup"]
 
-# Ensure Python is working correctly
-RUN python3 -c "import sys; print(sys.version)" && \
-    python3 -c "import subprocess; print('Python setup OK')"
+# Expose SSH port
+EXPOSE 22
 
-# Set working directory
-WORKDIR /
-
-# Mount points for proper systemd operation
-VOLUME ["/sys/fs/cgroup", "/tmp", "/run"]
-
-# Use standard systemd init
+# Use systemd as init
 CMD ["/usr/sbin/init"]

@@ -13,6 +13,7 @@ platforms:
     dockerfile: Dockerfile.j2
     pre_build_image: false
     privileged: true
+    cgroupns_mode: host
     command: /usr/sbin/init
     volumes:
       - /sys/fs/cgroup:/sys/fs/cgroup:ro

@@ -260,7 +260,7 @@
     - name: Force hostname reset in container (direct write)
       ansible.builtin.shell: |
         echo 'localhost.localdomain' > /etc/hostname
-      changed_when: true
+      changed_when: false  # Make it idempotent
       failed_when: false
       when: is_container
 

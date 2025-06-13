@@ -7,7 +7,7 @@ ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
 
 {% if '8' in item.image %}
-# Rocky/Alma Linux 8 setup with enhanced GPG handling
+# Rocky/Alma Linux 8 setup
 RUN dnf -y update --nogpgcheck --skip-broken && \
     dnf -y install --nogpgcheck --skip-broken \
     systemd \
@@ -34,7 +34,7 @@ RUN dnf -y update --nogpgcheck --skip-broken && \
     (alternatives --install /usr/bin/pip pip /usr/bin/pip3 1 || true)
 
 {% else %}
-# Rocky/Alma Linux 9+ setup
+# Rocky/Alma Linux 9+ setup with enhanced SSH configuration
 RUN dnf -y update --nogpgcheck --skip-broken && \
     dnf -y install --nogpgcheck --skip-broken \
     systemd \
@@ -52,6 +52,7 @@ RUN dnf -y update --nogpgcheck --skip-broken && \
     passwd \
     NetworkManager \
     glibc-common \
+    coreutils \
     && dnf clean all
 {% endif %}
 
@@ -81,7 +82,23 @@ RUN rm -f /etc/systemd/system/default.target && \
         ln -sf /dev/null /etc/systemd/system/$service || true; \
     done
 
-# Enhanced SSH configuration for better container connectivity
+{% if '9' in item.image %}
+# Enhanced SSH setup for Rocky/Alma 9
+RUN ssh-keygen -A && \
+    echo 'root:root' | chpasswd && \
+    sed -i 's/#Port 22/Port 22/' /etc/ssh/sshd_config && \
+    sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#UseDNS.*/UseDNS no/' /etc/ssh/sshd_config && \
+    sed -i 's/#GSSAPIAuthentication.*/GSSAPIAuthentication no/' /etc/ssh/sshd_config && \
+    sed -i 's/#PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config && \
+    mkdir -p /etc/systemd/system/multi-user.target.wants && \
+    mkdir -p /var/run/sshd && \
+    ln -sf /usr/lib/systemd/system/sshd.service /etc/systemd/system/multi-user.target.wants/sshd.service && \
+    systemctl enable sshd
+
+{% else %}
+# Standard SSH setup for Rocky/Alma 8
 RUN ssh-keygen -A && \
     sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
     sed -i 's/#UseDNS yes/UseDNS no/' /etc/ssh/sshd_config && \
@@ -89,8 +106,9 @@ RUN ssh-keygen -A && \
     mkdir -p /etc/systemd/system/multi-user.target.wants && \
     ln -sf /usr/lib/systemd/system/sshd.service /etc/systemd/system/multi-user.target.wants/sshd.service && \
     echo 'root:root' | chpasswd
+{% endif %}
 
-# Create required directories with proper permissions (excluding read-only mounts)
+# Create required directories (excluding read-only mounts)
 RUN mkdir -p /tmp /var/tmp /run /run/lock && \
     chmod 1777 /tmp /var/tmp /run/lock && \
     chmod 755 /run

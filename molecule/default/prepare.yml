@@ -14,13 +14,19 @@
       retries: 3
       delay: 10
 
+    # Give SSH service more time to fully initialize
+    - name: Wait for SSH service initialization
+      ansible.builtin.pause:
+        seconds: 15
+      when: ansible_distribution_major_version | int >= 9
+
     - name: Wait for container SSH service
       ansible.builtin.wait_for_connection:
-        timeout: 120
-        sleep: 5
-        delay: 10
+        timeout: 180  # Increased timeout for v9
+        sleep: 10     # Longer sleep between attempts
+        delay: 15     # More initial delay
       retries: 5
-      delay: 15
+      delay: 20
 
     # Alternative connection method if direct fails
     - name: Test basic connectivity with ping

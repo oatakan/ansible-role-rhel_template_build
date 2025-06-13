@@ -1,3 +1,4 @@
 FROM quay.io/rockylinux/rockylinux:9
-RUN dnf -y install systemd python3 sudo && dnf clean all
+RUN dnf -y install systemd python3 sudo && dnf clean all \
+    && mkdir -p /tmp/.ansible && chmod 0755 /tmp/.ansible
 CMD ["/usr/sbin/init"]

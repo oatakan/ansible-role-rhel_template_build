@@ -65,6 +65,9 @@ The scenario uses an `ansible.cfg` that sets `remote_tmp` to `/tmp/.ansible` so
 temporary files can be created inside the container. Molecule sets the
 `ANSIBLE_CONFIG` environment variable so Ansible loads this configuration.
 
+The Docker image used for testing creates this directory during build to
+avoid permission issues when Ansible gathers facts.
+
 The Molecule scenario builds a container from `quay.io/rockylinux/rockylinux:9`
 and installs `systemd` and Python so the role can run in a Docker container.
 

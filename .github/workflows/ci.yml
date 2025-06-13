@@ -9,7 +9,7 @@ jobs:
   lint-and-test:
     runs-on: ubuntu-latest
     env:
-      ANSIBLE_ROLES_PATH: tests/roles
+      ANSIBLE_ROLES_PATH: ${{ github.workspace }}/tests/roles
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python
@@ -29,9 +29,16 @@ jobs:
             name: oatakan.rhel_template_build
           EOF
           ansible-galaxy role install -r requirements.yml -p tests/roles
+          rm requirements.yml
       - name: Install required collections
-        run: ansible-galaxy collection install community.general
+        run: ansible-galaxy collection install community.general community.docker
       - name: Run ansible-lint
         run: ansible-lint --offline
       - name: Syntax check
         run: ansible-playbook -i tests/inventory tests/test.yml --syntax-check
+      - name: Install Molecule
+        run: pip install molecule molecule-plugins[docker]
+      - name: Start Docker
+        run: sudo systemctl start docker
+      - name: Test with Molecule
+        run: molecule test

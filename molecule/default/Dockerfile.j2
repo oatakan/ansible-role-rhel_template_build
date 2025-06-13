@@ -90,10 +90,10 @@ RUN ssh-keygen -A && \
     ln -sf /usr/lib/systemd/system/sshd.service /etc/systemd/system/multi-user.target.wants/sshd.service && \
     echo 'root:root' | chpasswd
 
-# Create required directories with proper permissions
-RUN mkdir -p /tmp /var/tmp /run /run/lock /sys/fs/cgroup && \
+# Create required directories with proper permissions (excluding read-only mounts)
+RUN mkdir -p /tmp /var/tmp /run /run/lock && \
     chmod 1777 /tmp /var/tmp /run/lock && \
-    chmod 755 /run /sys/fs/cgroup
+    chmod 755 /run
 
 # Test connectivity components
 RUN python3 --version && \

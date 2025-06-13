@@ -195,12 +195,19 @@ run_molecule() {
 install_deps() {
     print_status "Installing Python dependencies..."
     python3 -m pip install --upgrade pip
-    pip3 install \
-        'ansible-core>=2.14,<2.17' \
-        ansible-lint \
-        yamllint \
-        molecule \
-        'molecule-plugins[docker]'
+
+    if [ -f "requirements.txt" ]; then
+        print_status "Installing from requirements.txt..."
+        pip3 install -r requirements.txt
+    else
+        print_status "Installing individual packages..."
+        pip3 install \
+            'ansible-core>=2.14,<2.17' \
+            ansible-lint \
+            yamllint \
+            molecule \
+            'molecule-plugins[docker]'
+    fi
 
     print_status "Installing Ansible collections..."
     ansible-galaxy collection install \

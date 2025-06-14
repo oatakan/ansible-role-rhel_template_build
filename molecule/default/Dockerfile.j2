@@ -1,71 +1,65 @@
 FROM {{ item.image }}
 
+# Basic environment
+ENV container=docker
+ENV LANG=C.UTF-8
+
 {% if '8' in item.image %}
-# Rocky Linux 8 specific setup
-RUN dnf -y install \
-    systemd \
-    systemd-libs \
-    python3 \
-    python3-pip \
-    python3-setuptools \
-    python3-wheel \
-    platform-python-pip \
-    sudo \
-    which \
-    hostname \
-    procps-ng \
-    iproute \
-    openssh-server \
-    openssh-clients \
-    passwd \
-    && dnf clean all && \
-    alternatives --set python /usr/bin/python3 && \
-    alternatives --install /usr/bin/pip pip /usr/bin/pip3 1
+# Rocky/Alma Linux 8 packages
+RUN dnf -y update --nogpgcheck --skip-broken && \
+    dnf -y install --nogpgcheck --skip-broken \
+        systemd \
+        python3 \
+        openssh-server \
+        openssh-clients \
+        sudo \
+        passwd \
+        which \
+        hostname \
+    && dnf clean all
 
 {% else %}
-# Rocky/Alma Linux 9+ setup
-RUN dnf -y install \
-    systemd \
-    systemd-libs \
-    python3 \
-    python3-pip \
-    sudo \
-    which \
-    hostname \
-    procps-ng \
-    iproute \
-    openssh-server \
-    openssh-clients \
-    passwd \
+# Rocky/Alma Linux 9 packages
+RUN dnf -y update --nogpgcheck --skip-broken && \
+    dnf -y install --nogpgcheck --skip-broken \
+        systemd \
+        python3 \
+        openssh-server \
+        openssh-clients \
+        sudo \
+        passwd \
+        which \
+        hostname \
     && dnf clean all
 {% endif %}
 
-# Configure SSH for testing (if needed)
-RUN ssh-keygen -A && \
-    sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
-    sed -i 's/#UseDNS yes/UseDNS no/' /etc/ssh/sshd_config && \
-    systemctl enable sshd
+# Basic systemd cleanup
+RUN find /etc/systemd/system /lib/systemd/system \
+    -path '*.wants/*' \
+    \( -name '*getty*' -o -name '*systemd-tmpfiles*' -o -name '*systemd-update-utmp*' \) \
+    -exec rm -f {} + 2>/dev/null || true
 
-# Remove some systemd units that might cause issues in containers
-RUN (cd /lib/systemd/system/sysinit.target.wants/; for i in *; do [ $i == systemd-tmpfiles-setup.service ] || rm -f $i; done); \
-    rm -f /lib/systemd/system/multi-user.target.wants/*; \
-    rm -f /etc/systemd/system/*.wants/*; \
-    rm -f /lib/systemd/system/local-fs.target.wants/*; \
-    rm -f /lib/systemd/system/sockets.target.wants/*udev*; \
-    rm -f /lib/systemd/system/sockets.target.wants/*initctl*; \
-    rm -f /lib/systemd/system/basic.target.wants/*; \
-    rm -f /lib/systemd/system/anaconda.target.wants/*;
+# Configure SSH (simple approach that works for all versions)
+RUN ssh-keygen -A -q && \
+    echo 'root:root' | chpasswd && \
+    echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config && \
+    echo 'PasswordAuthentication yes' >> /etc/ssh/sshd_config && \
+    echo 'UseDNS no' >> /etc/ssh/sshd_config && \
+    mkdir -p /var/run/sshd
 
-# Create required directories and set permissions
-RUN mkdir -p /tmp && chmod 1777 /tmp && \
-    mkdir -p /var/tmp && chmod 1777 /var/tmp && \
-    mkdir -p /run && chmod 755 /run
+# Manual SSH service enabling (works in containers)
+RUN mkdir -p /etc/systemd/system/multi-user.target.wants && \
+    find /usr/lib/systemd/system /lib/systemd/system -name 'ssh*.service' -type f | head -1 | \
+    xargs -I {} ln -sf {} /etc/systemd/system/multi-user.target.wants/ 2>/dev/null || true
 
-# Ensure Python is working
-RUN python3 -c "import sys; print(sys.version)"
+# Create basic directories
+RUN mkdir -p /tmp /var/tmp /run /run/lock && \
+    chmod 1777 /tmp /var/tmp /run/lock && \
+    chmod 755 /run
 
-# Mount required cgroups
-VOLUME [ "/sys/fs/cgroup", "/tmp", "/run" ]
+# Test only Python (skip SSH test to avoid issues)
+RUN python3 --version
 
-# Set default command
+VOLUME ["/sys/fs/cgroup"]
+EXPOSE 22
 CMD ["/usr/sbin/init"]

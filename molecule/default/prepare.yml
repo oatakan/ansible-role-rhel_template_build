@@ -1,90 +1,34 @@
 ---
 - name: Prepare
   hosts: all
-  become: true
-  gather_facts: false # Don't gather facts initially
-
-  pre_tasks:
-    - name: Install Python if not present
-      ansible.builtin.raw: |
-        if ! command -v python3 &> /dev/null; then
-          dnf install -y python3 python3-pip
-        fi
-      changed_when: false
-
-    - name: Ensure Python symlink exists
-      ansible.builtin.raw: |
-        if [ ! -e /usr/bin/python ]; then
-          alternatives --set python /usr/bin/python3 2>/dev/null || \
-          ln -sf /usr/bin/python3 /usr/bin/python
-        fi
-      changed_when: false
-
-    - name: Gather facts after Python is ready
-      ansible.builtin.setup:
-
+  gather_facts: false
   tasks:
-    - name: Set local account username
-      ansible.builtin.set_fact:
-        local_account_username: "{{ local_account_username | default('root') }}"
+    # Wait for SSH port to be available
+    - name: Wait for SSH port
+      ansible.builtin.wait_for:
+        port: 22
+        host: "{{ ansible_host | default(inventory_hostname) }}"
+        timeout: 60
+        delay: 5
+      delegate_to: localhost
+      retries: 3
+      delay: 10
 
-    - name: Ensure /tmp has correct permissions
-      ansible.builtin.file:
-        path: /tmp
-        state: directory
-        mode: "1777"
+    # Simple connection test with retries
+    - name: Wait for SSH connection
+      ansible.builtin.wait_for_connection:
+        timeout: 120
+        sleep: 10
+        delay: 15
+      retries: 5
+      delay: 15
 
-    - name: Install required Python packages for RHEL 8
-      ansible.builtin.package:
-        name:
-          - platform-python
-          - python3-libselinux
-        state: present
-      when: ansible_distribution_major_version | int == 8
-      failed_when: false
+    # Test basic connectivity
+    - name: Test basic connectivity
+      ansible.builtin.ping:
+      retries: 3
+      delay: 5
 
-    - name: Create mock files for virtualization detection
-      ansible.builtin.file:
-        path: "{{ item }}"
-        state: touch
-        mode: "0644"
-      loop:
-        - /proc/scsi/scsi
-      failed_when: false
-
-    - name: Install additional packages for role testing
-      ansible.builtin.package:
-        name:
-          - NetworkManager
-          - network-scripts
-          - cloud-init
-          - cloud-utils-growpart
-        state: present
-      failed_when: false
-      when: ansible_distribution_major_version | int >= 8
-
-    - name: Start and enable NetworkManager
-      ansible.builtin.systemd:
-        name: NetworkManager
-        state: started
-        enabled: true
-        daemon_reload: true
-      failed_when: false
-      when: ansible_distribution_major_version | int >= 8
-
-    - name: Create mock network configuration
-      ansible.builtin.copy:
-        dest: /etc/sysconfig/network
-        content: |
-          NETWORKING=yes
-          HOSTNAME=localhost.localdomain
-        mode: "0644"
-
-    - name: Ensure SSH directory exists for local user
-      ansible.builtin.file:
-        path: /home/{{ local_account_username }}/.ssh
-        state: directory
-        owner: "{{ local_account_username }}"
-        group: "{{ local_account_username }}"
-        mode: "0700"
-      when: local_account_username in ansible_facts.getent_passwd
+    - name: Container ready
+      ansible.builtin.debug:
+        msg: "Container is ready for testing"

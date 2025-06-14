@@ -1,0 +1,36 @@
+# Development requirements for rhel_template_build role
+# This includes all production requirements plus additional development tools
+
+# Include base requirements
+-r requirements.txt
+
+# Additional development and testing tools
+pytest-xdist>=2.0.0  # Parallel test execution
+pytest-cov>=3.0.0    # Coverage reporting
+pytest-mock>=3.0.0   # Mocking support
+
+# Code formatting and additional linting
+black>=22.0.0         # Code formatter
+isort>=5.0.0          # Import sorter
+flake8>=4.0.0         # Additional Python linting
+
+# Documentation tools
+sphinx>=4.0.0         # Documentation generator
+sphinx-rtd-theme>=1.0.0  # Read the Docs theme
+
+# Debugging and profiling
+ipdb>=0.13.0          # Enhanced debugger
+memory-profiler>=0.60.0  # Memory usage profiling
+
+# Git hooks and pre-commit
+pre-commit>=2.15.0    # Git hook management
+
+# Version management
+bump2version>=1.0.0   # Version bumping tool
+
+# Security scanning
+safety>=2.0.0         # Dependency vulnerability scanner
+bandit>=1.7.0         # Security linter for Python
+
+# Performance testing
+locust>=2.0.0         # Load testing (if needed for large-scale deployments)

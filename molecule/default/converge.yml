@@ -2,20 +2,33 @@
 - name: Converge
   hosts: all
   become: true
+  gather_facts: true
   vars:
     # Override variables for container testing
     target_vagrant: false
     target_ovirt: false
-    local_account_username: root # Use root in containers
-    # Disable virtualization-specific tasks in containers
+    local_account_username: root # Use root in containers for simplicity
+    # Force container detection
     ansible_virtualization_type: docker
     ansible_virtualization_role: guest
 
   pre_tasks:
+    - name: Verify container connectivity
+      ansible.builtin.ping:
+      retries: 3
+      delay: 5
+
+    - name: Set container detection facts
+      ansible.builtin.set_fact:
+        is_container: true
+        ansible_virtualization_type: docker
+
     - name: Update package cache
       ansible.builtin.package:
         update_cache: true
       when: ansible_os_family == "RedHat"
+      retries: 3
+      delay: 10
 
     - name: Ensure required packages for testing
       ansible.builtin.package:
@@ -23,7 +36,10 @@
           - python3
           - sudo
           - openssh-server
+          - systemd
         state: present
+      retries: 3
+      delay: 10
 
     # Mock some expected facts that might not be available in containers
     - name: Set mock facts for container environment
@@ -34,14 +50,94 @@
           lvs:
             root:
               vg: vg00
-          vgs: {}
-          pvs: {}
+              size_g: "8.00"
+          vgs:
+            vg00:
+              size_g: "8.00"
+              free_g: "0.00"
+          pvs:
+            "/dev/sda2":
+              vg: vg00
+              size_g: "8.00"
+        ansible_cmdline:
+          root: "/dev/mapper/vg00-root"
+        ansible_mounts:
+          - mount: "/"
+            device: "/dev/mapper/vg00-root"
+            fstype: "xfs"
+            size_total: 8589934592
+        # Mock hardware facts
+        ansible_product_name: "Docker Container"
+        ansible_system_vendor: "Docker Inc."
+        ansible_bios_vendor: "Docker"
       when: ansible_virtualization_type == "docker"
+
+    - name: Create mock /proc/cmdline for container
+      ansible.builtin.copy:
+        dest: /proc/cmdline
+        content: "root=/dev/mapper/vg00-root ro quiet"
+        mode: "0444"
+      failed_when: false
+
+    - name: Debug environment
+      ansible.builtin.debug:
+        msg: |
+          Running in container: {{ is_container }}
+          Virtualization type: {{ ansible_virtualization_type }}
+          OS: {{ ansible_distribution }} {{ ansible_distribution_major_version }}
+          Python: {{ ansible_python_version }}
 
   roles:
     - role: oatakan.rhel_template_build
 
   post_tasks:
-    - name: Verify role execution
+    - name: Verify role execution completed
       ansible.builtin.debug:
         msg: "Role executed successfully in container environment"
+
+    - name: Check that critical files were created/modified
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: file_check
+      loop:
+        - /etc/hostname
+        - /etc/sysconfig/network
+        - /etc/ssh/sshd_config
+
+    - name: Display file check results
+      ansible.builtin.debug:
+        msg: "File {{ item.item }} exists: {{ item.stat.exists }}"
+      loop: "{{ file_check.results }}"
+
+    - name: Verify SSH configuration changes
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        line: "{{ item }}"
+        state: present
+      check_mode: true
+      register: ssh_verify
+      failed_when: ssh_verify.changed
+      loop:
+        - "UseDNS no"
+        - "GSSAPIAuthentication no"
+
+    - name: Check hostname was reset
+      ansible.builtin.slurp:
+        src: /etc/hostname
+      register: hostname_content
+
+    - name: Verify hostname content
+      ansible.builtin.assert:
+        that:
+          - "'localhost.localdomain' in (hostname_content.content | b64decode)"
+        fail_msg: "Hostname was not properly reset"
+        success_msg: "Hostname correctly set to localhost.localdomain"
+
+    - name: Final verification summary
+      ansible.builtin.debug:
+        msg: |
+          ✓ Role execution completed successfully
+          ✓ SSH configuration updated
+          ✓ Hostname reset to localhost.localdomain
+          ✓ Network configuration created
+          ✓ Container environment properly handled

@@ -2,11 +2,8 @@
 name: Automated Release Pipeline
 
 on:
-  # Only run after CI completes successfully
-  workflow_run:
-    workflows: ["CI"]
-    types:
-      - completed
+  # Simple push trigger - branch protection ensures CI passed
+  push:
     branches: [main, master]
   schedule:
     - cron: '0 0 * * 0'  # Weekly on Sunday for accumulated changes
@@ -22,47 +19,8 @@ env:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
 jobs:
-  # Check if we should proceed with release
-  check-prerequisites:
-    runs-on: ubuntu-latest
-    outputs:
-      should_proceed: ${{ steps.check.outputs.should_proceed }}
-      trigger_reason: ${{ steps.check.outputs.trigger_reason }}
-    steps:
-      - name: Check release prerequisites
-        id: check
-        run: |
-          echo "Event: ${{ github.event_name }}"
-          echo "Workflow run conclusion: ${{ github.event.workflow_run.conclusion }}"
-          
-          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
-            if [[ "${{ github.event.workflow_run.conclusion }}" == "success" ]]; then
-              echo "✅ CI workflow completed successfully"
-              echo "should_proceed=true" >> $GITHUB_OUTPUT
-              echo "trigger_reason=ci_success" >> $GITHUB_OUTPUT
-            else
-              echo "❌ CI workflow failed - blocking release"
-              echo "should_proceed=false" >> $GITHUB_OUTPUT
-              echo "trigger_reason=ci_failed" >> $GITHUB_OUTPUT
-            fi
-          elif [[ "${{ github.event_name }}" == "schedule" ]]; then
-            echo "⏰ Scheduled release check"
-            echo "should_proceed=true" >> $GITHUB_OUTPUT
-            echo "trigger_reason=scheduled" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "🔧 Manual release trigger"
-            echo "should_proceed=true" >> $GITHUB_OUTPUT
-            echo "trigger_reason=manual" >> $GITHUB_OUTPUT
-          else
-            echo "❓ Unexpected trigger"
-            echo "should_proceed=false" >> $GITHUB_OUTPUT
-            echo "trigger_reason=unknown" >> $GITHUB_OUTPUT
-          fi
-
   analyze-changes:
     runs-on: ubuntu-latest
-    needs: check-prerequisites
-    if: needs.check-prerequisites.outputs.should_proceed == 'true'
     outputs:
       should_release: ${{ steps.analyze.outputs.should_release }}
       version_bump: ${{ steps.analyze.outputs.version_bump }}
@@ -97,14 +55,15 @@ jobs:
         run: |
           echo "### 🤖 AI Release Analysis" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Triggered by:** ${{ needs.check-prerequisites.outputs.trigger_reason }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Strategy:** Branch protection (CI pre-validated on PRs)" >> $GITHUB_STEP_SUMMARY
           echo "**Recommended Version Bump:** ${{ steps.analyze.outputs.version_bump }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Reasoning:**" >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.analyze.outputs.analysis_reasoning }}" >> $GITHUB_STEP_SUMMARY
 
   create-release:
-    needs: [check-prerequisites, analyze-changes]
+    needs: analyze-changes
     if: needs.analyze-changes.outputs.should_release == 'true' || github.event.inputs.force_release == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -188,7 +147,7 @@ jobs:
           prerelease: false
 
   deploy-galaxy:
-    needs: [check-prerequisites, analyze-changes, create-release]
+    needs: [analyze-changes, create-release]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -224,6 +183,7 @@ jobs:
         run: |
           if [ "${{ needs.deploy-galaxy.result }}" == "success" ]; then
             echo "✅ Release successfully deployed to Ansible Galaxy!" >> $GITHUB_STEP_SUMMARY
+            echo "📦 **Release completed in $(( $(date +%s) - $(date -d '${{ github.event.head_commit.timestamp }}' +%s) )) seconds from push**" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ Release process failed. Check logs for details." >> $GITHUB_STEP_SUMMARY
           fi

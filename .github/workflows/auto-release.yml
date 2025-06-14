@@ -92,13 +92,14 @@ jobs:
     outputs:
       should_release: ${{ steps.analyze.outputs.should_release }}
       version_bump: ${{ steps.analyze.outputs.version_bump }}
-      release_notes: ${{ steps.analyze.outputs.release_notes }}
+      new_version: ${{ steps.analyze.outputs.new_version }}
+      analysis_reasoning: ${{ steps.analyze.outputs.analysis_reasoning }}
       changelog_entry: ${{ steps.analyze.outputs.changelog_entry }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Full history for analysis
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -139,6 +140,7 @@ jobs:
             echo "version_bump=$VERSION_BUMP" >> $GITHUB_OUTPUT
             echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
             echo "analysis_reasoning=$REASONING" >> $GITHUB_OUTPUT
+            echo "changelog_entry=- $REASONING" >> $GITHUB_OUTPUT
             
             # Create analysis file for other jobs
             cat > /tmp/release_analysis.json << EOF
@@ -157,9 +159,6 @@ jobs:
             echo "analysis_reasoning=Failed to parse AI analysis output" >> $GITHUB_OUTPUT
             exit 1
           fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          FORCE_RELEASE: ${{ github.event.inputs.force_release }}
 
       - name: Post analysis summary
         if: steps.analyze.outputs.should_release == 'true'
@@ -170,6 +169,7 @@ jobs:
           echo "**Strategy:** Branch protection (CI pre-validated on PRs)" >> $GITHUB_STEP_SUMMARY
           echo "**Loop Prevention:** Passed (no bot commits or docs-only changes)" >> $GITHUB_STEP_SUMMARY
           echo "**Recommended Version Bump:** ${{ steps.analyze.outputs.version_bump }}" >> $GITHUB_STEP_SUMMARY
+          echo "**New Version:** ${{ steps.analyze.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Reasoning:**" >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.analyze.outputs.analysis_reasoning }}" >> $GITHUB_STEP_SUMMARY
@@ -178,72 +178,94 @@ jobs:
     needs: [check-release-needed, analyze-changes]
     if: needs.check-release-needed.outputs.should_skip == 'false' && (needs.analyze-changes.outputs.should_release == 'true' || github.event.inputs.force_release == 'true')
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
+      - name: Debug job inputs
         run: |
-          python -m pip install --upgrade pip
-          pip install -r .github/scripts/requirements.txt
+          echo "🔍 Debugging job inputs from analyze-changes..."
+          echo ""
+          echo "Job outputs received:"
+          echo "- should_release: '${{ needs.analyze-changes.outputs.should_release }}'"
+          echo "- version_bump: '${{ needs.analyze-changes.outputs.version_bump }}'"
+          echo "- new_version: '${{ needs.analyze-changes.outputs.new_version }}'"
+          echo "- analysis_reasoning: '${{ needs.analyze-changes.outputs.analysis_reasoning }}'"
+          echo "- changelog_entry: '${{ needs.analyze-changes.outputs.changelog_entry }}'"
+          echo ""
+          
+          # Check if any are empty
+          if [ -z "${{ needs.analyze-changes.outputs.new_version }}" ]; then
+            echo "❌ CRITICAL: new_version is empty!"
+          else
+            echo "✅ new_version received: ${{ needs.analyze-changes.outputs.new_version }}"
+          fi
+          
+          if [ -z "${{ needs.analyze-changes.outputs.version_bump }}" ]; then
+            echo "❌ CRITICAL: version_bump is empty!"
+          else
+            echo "✅ version_bump received: ${{ needs.analyze-changes.outputs.version_bump }}"
+          fi
 
-      - name: Configure Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Calculate new version
+      - name: Set version from AI analysis
         id: version
         run: |
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          LATEST_VERSION=${LATEST_TAG#v}
+          # Use AI analysis results directly
+          AI_NEW_VERSION="${{ needs.analyze-changes.outputs.new_version }}"
+          AI_VERSION_BUMP="${{ needs.analyze-changes.outputs.version_bump }}"
           
-          python -c "
-          import semver
-          version = semver.Version.parse('$LATEST_VERSION')
-          bump_type = '${{ needs.analyze-changes.outputs.version_bump }}'
+          echo "🤖 AI Analysis Results:"
+          echo "- New Version: $AI_NEW_VERSION"
+          echo "- Version Bump: $AI_VERSION_BUMP"
           
-          if bump_type == 'major':
-              new_version = version.bump_major()
-          elif bump_type == 'minor':
-              new_version = version.bump_minor()
-          else:
-              new_version = version.bump_patch()
+          # Validate we have the required outputs
+          if [ -z "$AI_NEW_VERSION" ] || [ "$AI_NEW_VERSION" = "null" ]; then
+            echo "❌ ERROR: No new version from AI analysis"
+            echo "Available outputs:"
+            echo "- should_release: ${{ needs.analyze-changes.outputs.should_release }}"
+            echo "- version_bump: ${{ needs.analyze-changes.outputs.version_bump }}"
+            echo "- new_version: ${{ needs.analyze-changes.outputs.new_version }}"
+            exit 1
+          fi
           
-          print(f'NEW_VERSION={new_version}')
-          print(f'NEW_TAG=v{new_version}')
-          " >> $GITHUB_OUTPUT
-
-      - name: Update CHANGELOG.md (locally only)
-        run: |
-          python .github/scripts/update_changelog.py \
-            --version "${{ steps.version.outputs.NEW_VERSION }}" \
-            --entry "${{ needs.analyze-changes.outputs.changelog_entry }}"
-
-      - name: Update documentation with AI (locally only)
-        run: |
-          python .github/scripts/ai_doc_updater.py \
-            --version "${{ steps.version.outputs.NEW_VERSION }}"
+          # Use AI-determined version directly
+          NEW_VERSION=${AI_NEW_VERSION#v}  # Remove 'v' prefix for version
+          NEW_TAG="$AI_NEW_VERSION"       # Keep 'v' prefix for tag
+          
+          echo "🏷️ Final version: $NEW_VERSION"
+          echo "🏷️ Final tag: $NEW_TAG"
+          
+          # Verify tag doesn't already exist
+          if git tag -l | grep -q "^${NEW_TAG}$"; then
+            echo "❌ Tag $NEW_TAG already exists!"
+            echo "🔍 Existing tags:"
+            git tag -l | sort -V | tail -5
+            echo ""
+            echo "🤖 This suggests the AI analysis or version calculation has an issue."
+            exit 1
+          fi
+          
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "NEW_TAG=$NEW_TAG" >> $GITHUB_OUTPUT
+          echo "VERSION_BUMP=$AI_VERSION_BUMP" >> $GITHUB_OUTPUT
 
       # Don't commit changes to master - just create the tag and release
-      - name: Create and push tag (without committing to master)
+      - name: Create and push tag (using AI version)
         run: |
           NEW_TAG="${{ steps.version.outputs.NEW_TAG }}"
           NEW_VERSION="${{ steps.version.outputs.NEW_VERSION }}"
           
           echo "🏷️ Creating tag: $NEW_TAG"
           echo "📦 Version: $NEW_VERSION"
+          echo "🤖 AI suggested: ${{ needs.analyze-changes.outputs.new_version }}"
+          echo "📊 Version bump: ${{ needs.analyze-changes.outputs.version_bump }}"
+          
+          # Verify this is the correct version
+          if [ "$NEW_TAG" != "${{ needs.analyze-changes.outputs.new_version }}" ]; then
+            echo "⚠️ WARNING: Tag ($NEW_TAG) doesn't match AI suggestion (${{ needs.analyze-changes.outputs.new_version }})"
+          fi
           
           # Double-check tag doesn't exist
           if git tag -l | grep -q "^${NEW_TAG}$"; then
@@ -253,6 +275,9 @@ jobs:
             echo ""
             echo "🤖 AI suggested version: ${{ needs.analyze-changes.outputs.new_version }}"
             echo "📊 Version bump type: ${{ needs.analyze-changes.outputs.version_bump }}"
+            echo "🔧 Calculated tag: $NEW_TAG"
+            echo ""
+            echo "This indicates a logic error in version calculation."
             exit 1
           fi
           
@@ -269,21 +294,23 @@ jobs:
           
           echo "✅ Tag pushed to remote"
 
-      - name: Create GitHub Release with enhanced notes
-        uses: softprops/action-gh-release@v1
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.version.outputs.NEW_TAG }}
-          name: ${{ steps.version.outputs.NEW_TAG }}
+          release_name: Release ${{ steps.version.outputs.NEW_TAG }}
           body: |
-            ${{ needs.analyze-changes.outputs.release_notes }}
-            
-            ## 📋 Changelog Entry
+            ## Changes in ${{ steps.version.outputs.NEW_TAG }}
+
             ${{ needs.analyze-changes.outputs.changelog_entry }}
-            
-            ## 🚀 Installation
-            ```bash
-            ansible-galaxy install oatakan.rhel_template_build:${{ steps.version.outputs.NEW_VERSION }}
-            ```
+
+            **Release Type:** ${{ needs.analyze-changes.outputs.version_bump }}
+            **Analysis:** ${{ needs.analyze-changes.outputs.analysis_reasoning }}
+
+            ---
+            *This release was automatically generated based on AI analysis of the changes.*
           draft: false
           prerelease: false
 
@@ -361,7 +388,7 @@ jobs:
             echo "### ✅ Release Successfully Deployed!" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "🎉 **New version deployed to Ansible Galaxy**" >> $GITHUB_STEP_SUMMARY
-            echo "📦 **Version:** ${{ needs.analyze-changes.outputs.version_bump }}" >> $GITHUB_STEP_SUMMARY
+            echo "📦 **Version:** ${{ needs.analyze-changes.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
             echo "⏱️ **Completion Time:** $(( $(date +%s) - $(date -d '${{ github.event.head_commit.timestamp }}' +%s) )) seconds from push" >> $GITHUB_STEP_SUMMARY
           elif [[ "${{ needs.create-release.result }}" == "skipped" ]]; then
             echo "### ⚠️ Release Jobs Skipped" >> $GITHUB_STEP_SUMMARY

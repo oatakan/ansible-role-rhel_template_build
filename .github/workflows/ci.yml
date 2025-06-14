@@ -1,139 +1,202 @@
 ---
 name: CI
+
 on:
-  push:
-    branches: [ main, master ]
   pull_request:
-    branches: [ main, master ]
-  schedule:
-    # Run tests weekly to catch upstream changes
-    - cron: '0 8 * * 1'
+  push:
+    branches: [main, master]
+
+env:
+  ANSIBLE_ROLES_PATH: ${{ github.workspace }}/tests/roles
+  ANSIBLE_RETRY_FILES_ENABLED: false
+  ANSIBLE_PIPELINING: true
 
 jobs:
   lint:
-    name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: Check out the codebase.
-        uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Set up Python 3.
-        uses: actions/setup-python@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: '3.11'
 
-      - name: Install test dependencies.
-        run: pip3 install ansible ansible-lint yamllint
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible ansible-lint yamllint
 
-      - name: Run yamllint.
+      - name: Install required collections
+        run: |
+          ansible-galaxy collection install community.general ansible.posix
+
+      - name: Set up role locally
+        run: |
+          mkdir -p tests/roles
+          ln -s ${{ github.workspace }} tests/roles/oatakan.rhel_template_build
+
+      - name: Run yamllint
         run: yamllint .
 
-      - name: Run ansible-lint.
+      - name: Run ansible-lint
         run: ansible-lint
 
-  molecule:
-    name: Molecule
+  syntax-check:
     runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Ansible
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible
+
+      - name: Set up role locally
+        run: |
+          mkdir -p tests/roles
+          ln -s ${{ github.workspace }} tests/roles/oatakan.rhel_template_build
+
+      - name: Install required collections
+        run: |
+          ansible-galaxy collection install community.general ansible.posix
+
+      - name: Syntax check
+        run: |
+          ansible-playbook -i tests/inventory tests/test.yml --syntax-check
+
+  test-docker:
+    runs-on: ubuntu-latest
+    needs: syntax-check
+    timeout-minutes: 45
     strategy:
+      fail-fast: false
       matrix:
         include:
-          # Rocky Linux distributions
-          - distro: rockylinux:8
-            experimental: false
-          - distro: rockylinux:9
-            experimental: false
-          - distro: rockylinux:10
-            experimental: true   # Mark as experimental initially
-
-          # AlmaLinux distributions
-          - distro: almalinux:8
-            experimental: false
-          - distro: almalinux:9
-            experimental: false
-          - distro: almalinux:10
-            experimental: true   # Mark as experimental initially
-
-    continue-on-error: ${{ matrix.experimental }}
+          # Map friendly names to actual container images
+          - distro_name: "rockylinux-8"
+            molecule_distro: "quay.io/rockylinux/rockylinux:8"
+          - distro_name: "rockylinux-9"
+            molecule_distro: "quay.io/rockylinux/rockylinux:9"
+          - distro_name: "rockylinux-10"
+            molecule_distro: "quay.io/rockylinux/rockylinux:10"
+          - distro_name: "almalinux-8"
+            molecule_distro: "quay.io/almalinux/almalinux:8"
+          - distro_name: "almalinux-9"
+            molecule_distro: "quay.io/almalinux/almalinux:9"
+          - distro_name: "almalinux-8"
+            molecule_distro: "quay.io/almalinux/almalinux:8"
+          - distro_name: "almalinux-10"
+            molecule_distro: "quay.io/almalinux/almalinux:10"
 
     steps:
-      - name: Check out the codebase.
-        uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Set up Python 3.
-        uses: actions/setup-python@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: '3.11'
 
-      - name: Install test dependencies.
-        run: pip3 install ansible molecule molecule-plugins[docker] docker
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Run Molecule tests.
-        run: molecule test
-        env:
-          PY_COLORS: '1'
-          ANSIBLE_FORCE_COLOR: '1'
-          MOLECULE_DISTRO: ${{ matrix.distro }}
-
-      - name: Upload test results
-        uses: actions/upload-artifact@v3
-        if: always()
-        with:
-          name: molecule-results-${{ matrix.distro }}
-          path: |
-            molecule/default/.molecule/
-            !molecule/default/.molecule/*/docker/
-
-  # Optional: Separate job for RHEL 10 validation (can be enabled after initial testing)
-  rhel10-validation:
-    name: RHEL 10 Validation
-    runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' || contains(github.event.head_commit.message, '[test-rhel10]')
-    strategy:
-      matrix:
-        distro:
-          - almalinux:10
-          - rockylinux:10
-
-    steps:
-      - name: Check out the codebase.
-        uses: actions/checkout@v3
-
-      - name: Set up Python 3.
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.x'
-
-      - name: Install test dependencies.
-        run: pip3 install ansible molecule molecule-plugins[docker] docker
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Validate RHEL 10 support
+      - name: Free up disk space
         run: |
-          echo "Testing RHEL 10 distribution: ${{ matrix.distro }}"
-          molecule create
-          molecule prepare  
-          molecule converge
-          molecule verify
-          molecule destroy
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo docker system prune -af
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install 'ansible-core>=2.14,<2.17' molecule molecule-plugins[docker]
+
+      - name: Set up role locally
+        run: |
+          mkdir -p tests/roles
+          ln -s ${{ github.workspace }} tests/roles/oatakan.rhel_template_build
+
+      - name: Install collections
+        run: |
+          ansible-galaxy collection install community.general community.docker ansible.posix
+
+      - name: Debug Docker and environment
+        run: |
+          echo "Testing distro: ${{ matrix.distro_name }}"
+          echo "Using image: ${{ matrix.molecule_distro }}"
+          docker --version
+          docker info
+          docker system df
+
+      - name: Pre-pull Docker image
+        run: |
+          echo "Pre-pulling image to avoid timeout during molecule test..."
+          docker pull ${{ matrix.molecule_distro }} || echo "Failed to pre-pull, will try during test"
+
+      - name: Run Molecule tests
+        run: |
+          cd ${{ github.workspace }}
+          molecule test --scenario-name default
         env:
-          PY_COLORS: '1'
+          MOLECULE_DISTRO: ${{ matrix.molecule_distro }}
           ANSIBLE_FORCE_COLOR: '1'
-          MOLECULE_DISTRO: ${{ matrix.distro }}
+          PY_COLORS: '1'
 
-      - name: Create success marker
-        if: success()
-        run: echo "RHEL 10 (${{ matrix.distro }}) validation successful" > rhel10-success.txt
-
-      - name: Upload validation results
-        uses: actions/upload-artifact@v3
-        if: always()
+      - name: Upload molecule logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
         with:
-          name: rhel10-validation-${{ matrix.distro }}
+          name: molecule-logs-${{ matrix.distro_name }}
           path: |
-            rhel10-success.txt
             molecule/default/.molecule/
+            ~/.cache/molecule/
+          retention-days: 7
+
+  # Optional VM tests for main branch only
+  test-vagrant:
+    runs-on: self-hosted
+    needs: syntax-check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 60
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        box:
+          - generic/rocky8
+          - generic/rocky9
+          - generic/rocky10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up role locally
+        run: |
+          mkdir -p tests/roles
+          ln -s ${{ github.workspace }} tests/roles/oatakan.rhel_template_build
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install 'ansible-core>=2.14,<2.17' molecule molecule-plugins[vagrant]
+
+      - name: Install collections
+        run: |
+          ansible-galaxy collection install community.general ansible.posix
+
+      - name: Run Molecule vagrant tests
+        run: |
+          cd molecule/vagrant
+          molecule test
+        env:
+          MOLECULE_VAGRANT_BOX: ${{ matrix.box }}

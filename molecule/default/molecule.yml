@@ -1,53 +1,20 @@
 ---
 dependency:
   name: galaxy
+  options:
+    requirements-file: molecule/default/requirements.yml
+
 driver:
   name: docker
-platforms:
-  # Rocky Linux 8
-  - name: instance-rocky8
-    image: ${MOLECULE_DISTRO:-quay.io/rockylinux/rockylinux:8}
-    dockerfile: Dockerfile.j2
-    command: /usr/sbin/init
-    privileged: true
-    pre_build_image: false
-    capabilities:
-      - SYS_ADMIN
-      - SYS_RESOURCE
-      - NET_ADMIN
-    volumes:
-      - /sys/fs/cgroup:/sys/fs/cgroup:rw
-      - /tmp
-      - /run
-    tmpfs:
-      - /tmp:exec,mode=1777
-      - /run:exec,mode=755
-      - /run/lock:noexec,nosuid,nodev,mode=1777
-    published_ports:
-      - "0.0.0.0:2222:22/tcp"
-    networks:
-      - name: molecule
-    environment:
-      container: docker
-      SYSTEMD_UNIT_PATH: /etc/systemd/system
-    memory: 2g
-    memory_swap: 2g
-    cgroupns_mode: host
-    security_opts:
-      - seccomp=unconfined
-      - apparmor=unconfined
 
-  # Rocky Linux 9
-  - name: instance-rocky9
+platforms:
+  - name: instance
     image: ${MOLECULE_DISTRO:-quay.io/rockylinux/rockylinux:9}
     dockerfile: Dockerfile.j2
-    command: /usr/sbin/init
-    privileged: true
     pre_build_image: false
-    capabilities:
-      - SYS_ADMIN
-      - SYS_RESOURCE
-      - NET_ADMIN
+    privileged: true
+    cgroupns_mode: host
+    command: /usr/sbin/init
     volumes:
       - /sys/fs/cgroup:/sys/fs/cgroup:rw
       - /tmp
@@ -56,157 +23,107 @@ platforms:
       - /tmp:exec,mode=1777
       - /run:exec,mode=755
       - /run/lock:noexec,nosuid,nodev,mode=1777
-    published_ports:
-      - "0.0.0.0:2223:22/tcp"
-    networks:
-      - name: molecule
-    environment:
-      container: docker
-      SYSTEMD_UNIT_PATH: /etc/systemd/system
-    memory: 2g
-    memory_swap: 2g
-    cgroupns_mode: host
-    security_opts:
-      - seccomp=unconfined
-      - apparmor=unconfined
-
-  # Rocky Linux 10 (NEW!)
-  - name: instance-rocky10
-    image: ${MOLECULE_DISTRO:-quay.io/rockylinux/rockylinux:10}
-    dockerfile: Dockerfile.j2
-    command: /usr/sbin/init
-    privileged: true
-    pre_build_image: false
     capabilities:
       - SYS_ADMIN
       - SYS_RESOURCE
       - NET_ADMIN
-    volumes:
-      - /sys/fs/cgroup:/sys/fs/cgroup:rw
-      - /tmp
-      - /run
-    tmpfs:
-      - /tmp:exec,mode=1777
-      - /run:exec,mode=755
-      - /run/lock:noexec,nosuid,nodev,mode=1777
-    published_ports:
-      - "0.0.0.0:2224:22/tcp"
-    networks:
-      - name: molecule
-    environment:
-      container: docker
-      SYSTEMD_UNIT_PATH: /etc/systemd/system
-    memory: 2g
-    memory_swap: 2g
-    cgroupns_mode: host
     security_opts:
       - seccomp=unconfined
       - apparmor=unconfined
-
-  # AlmaLinux 8
-  - name: instance-alma8
-    image: ${MOLECULE_DISTRO:-quay.io/almalinuxorg/almalinux:8}
-    dockerfile: Dockerfile.j2
-    command: /usr/sbin/init
-    privileged: true
-    pre_build_image: false
-    capabilities:
-      - SYS_ADMIN
-      - SYS_RESOURCE
-      - NET_ADMIN
-    volumes:
-      - /sys/fs/cgroup:/sys/fs/cgroup:rw
-      - /tmp
-      - /run
-    tmpfs:
-      - /tmp:exec,mode=1777
-      - /run:exec,mode=755
-      - /run/lock:noexec,nosuid,nodev,mode=1777
-    published_ports:
-      - "0.0.0.0:2225:22/tcp"
-    networks:
-      - name: molecule
     environment:
       container: docker
       SYSTEMD_UNIT_PATH: /etc/systemd/system
+    # Add resource limits to prevent memory issues
     memory: 2g
     memory_swap: 2g
-    cgroupns_mode: host
-    security_opts:
-      - seccomp=unconfined
-      - apparmor=unconfined
-
-  # AlmaLinux 9
-  - name: instance-alma9
-    image: ${MOLECULE_DISTRO:-quay.io/almalinuxorg/almalinux:9}
-    dockerfile: Dockerfile.j2
-    command: /usr/sbin/init
-    privileged: true
-    pre_build_image: false
-    capabilities:
-      - SYS_ADMIN
-      - SYS_RESOURCE
-      - NET_ADMIN
-    volumes:
-      - /sys/fs/cgroup:/sys/fs/cgroup:rw
-      - /tmp
-      - /run
-    tmpfs:
-      - /tmp:exec,mode=1777
-      - /run:exec,mode=755
-      - /run/lock:noexec,nosuid,nodev,mode=1777
-    published_ports:
-      - "0.0.0.0:2226:22/tcp"
+    # Keep container running with a proper init system
+    keep_volumes: false
+    tty: true
+    # Network configuration
     networks:
       - name: molecule
-    environment:
-      container: docker
-      SYSTEMD_UNIT_PATH: /etc/systemd/system
-    memory: 2g
-    memory_swap: 2g
-    cgroupns_mode: host
-    security_opts:
-      - seccomp=unconfined
-      - apparmor=unconfined
-
-  # AlmaLinux 10 (NEW!)
-  - name: instance-alma10
-    image: ${MOLECULE_DISTRO:-quay.io/almalinuxorg/almalinux:10}
-    dockerfile: Dockerfile.j2
-    command: /usr/sbin/init
-    privileged: true
-    pre_build_image: false
-    capabilities:
-      - SYS_ADMIN
-      - SYS_RESOURCE
-      - NET_ADMIN
-    volumes:
-      - /sys/fs/cgroup:/sys/fs/cgroup:rw
-      - /tmp
-      - /run
-    tmpfs:
-      - /tmp:exec,mode=1777
-      - /run:exec,mode=755
-      - /run/lock:noexec,nosuid,nodev,mode=1777
     published_ports:
-      - "0.0.0.0:2227:22/tcp"
-    networks:
-      - name: molecule
-    environment:
-      container: docker
-      SYSTEMD_UNIT_PATH: /etc/systemd/system
-    memory: 2g
-    memory_swap: 2g
-    cgroupns_mode: host
-    security_opts:
-      - seccomp=unconfined
-      - apparmor=unconfined
+      - "0.0.0.0:2222:22/tcp"
 
 provisioner:
   name: ansible
+  config_options:
+    defaults:
+      interpreter_python: auto_silent
+      callback_whitelist: profile_tasks, timer
+      stdout_callback: yaml
+      bin_ansible_callbacks: true
+      gathering: smart
+      fact_caching: memory
+      host_key_checking: false
+      retry_files_enabled: false
+    ssh_connection:
+      pipelining: true
+      ssh_args: -o ControlMaster=auto -o ControlPersist=60s -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes
   inventory:
     host_vars:
       instance:
         ansible_user: root
+        ansible_python_interpreter: /usr/bin/python3
+        ansible_connection: docker
+        # Add retry parameters for flaky connections
+        ansible_ssh_retries: 3
+        ansible_timeout: 30
+  env:
+    ANSIBLE_CONFIG: ${MOLECULE_SCENARIO_DIRECTORY}/ansible.cfg
+    ANSIBLE_HOST_KEY_CHECKING: false
+    ANSIBLE_FORCE_COLOR: true
+    # Prevent issues with temporary files
+    ANSIBLE_REMOTE_TMP: /tmp
+    ANSIBLE_LOCAL_TEMP: /tmp
+  playbooks:
+    prepare: ${MOLECULE_SCENARIO_DIRECTORY}/prepare.yml
+    converge: ${MOLECULE_SCENARIO_DIRECTORY}/converge.yml
+    verify: ${MOLECULE_SCENARIO_DIRECTORY}/verify.yml
+  ansible_args:
+    - --diff
+    - -v
+    - --timeout=60
+  # Add timeout for long-running tasks
+  timeout: 600  # Increased timeout for full test execution
+
 verifier:
   name: ansible
+
+scenario:
+  name: default
+  create_sequence:
+    - dependency
+    - create
+    - prepare
+  check_sequence:
+    - dependency
+    - cleanup
+    - destroy
+    - create
+    - prepare
+    - converge
+    - check
+    - destroy
+  converge_sequence:
+    - dependency
+    - create
+    - prepare
+    - converge
+  destroy_sequence:
+    - dependency
+    - cleanup
+    - destroy
+  test_sequence:
+    - dependency
+    - cleanup
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - side_effect
+    - verify
+    - cleanup
+    - destroy

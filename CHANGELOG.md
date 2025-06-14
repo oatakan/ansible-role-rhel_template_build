@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hostname reset issues in containerized environments
 - Package installation failures in restricted environments
 
+## [v1.1.0] - 2025-06-14
+
+### Changes
+- Enhance AI-enabled automation
+- Fix datetime import in ai_doc_updater.py
+
 ## [v0.0.1] - 2025-06-14
 
 ### Changed
@@ -44,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SSH hardening (disabled DNS lookups, GSSAPI)
 - SELinux relabeling on boot
 
-[Unreleased]: https://github.com/oatakan/ansible-role-rhel_template_build/compare/v0.0.1...HEAD
+[Unreleased]: https://github.com/oatakan/ansible-role-rhel_template_build/compare/v1.1.0...HEAD
 [v1.0.0]: https://github.com/oatakan/ansible-role-rhel_template_build/releases/tag/v1.0.0
 [v0.0.1]: https://github.com/oatakan/ansible-role-rhel_template_build/compare/v1.0.0...v0.0.1
+[v1.1.0]: https://github.com/oatakan/ansible-role-rhel_template_build/compare/v1.0.0...v1.1.0

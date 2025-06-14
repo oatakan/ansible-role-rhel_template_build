@@ -5,13 +5,32 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Ansible Role](https://img.shields.io/ansible/role/d/oatakan/rhel_template_build)](https://galaxy.ansible.com/oatakan/rhel_template_build)
 
-This role turns a minimal Red Hat Enterprise Linux (RHEL) or CentOS system into a golden image that can be safely cloned.  It installs common utilities, configures networking and SSH, enables cloud-init and guest agents, and then cleans the machine so copies boot as if fresh.  You can run the role with the Packer Ansible provisioner or combine it with roles like `oatakan.rhel_vcenter_template` and `oatakan.rhel_ovirt_template` when provisioning directly against your virtualization platform.
+This role transforms a minimal **Red Hat Enterprise Linux (RHEL)** system into a golden image template that can be safely cloned. Designed primarily for RHEL environments, it installs common utilities, configures networking and SSH, enables cloud-init and guest agents, and cleans the system so cloned instances boot with fresh identities.
+
+You can use this role with the Packer Ansible provisioner or combine it with roles like `oatakan.rhel_vcenter_template` and `oatakan.rhel_ovirt_template` when provisioning directly against your virtualization platform.
+
+## Supported Systems
+
+This role is designed and tested for **Red Hat Enterprise Linux**:
+
+### Primary Target
+- ✅ **RHEL 8** (tested via Red Hat Universal Base Images)
+- ✅ **RHEL 9** (tested via Red Hat Universal Base Images)  
+- ✅ **RHEL 10** (tested via Red Hat Universal Base Images)
+
+### Additional Compatibility
+Also tested for compatibility with RHEL-based distributions:
+- ✅ **Rocky Linux** 8, 9, 10
+- ✅ **AlmaLinux** 8, 9, 10
+
+*Testing is performed using both containerized environments and virtual machine scenarios.*
 
 ## Requirements
 
 * Ansible 2.9 or newer
-* Root privileges on the target RHEL/CentOS system
-* Optional: access to the virtualization platform (VMware, VirtualBox, Parallels or oVirt) if the associated guest tools should be installed
+* Root privileges on the target RHEL system
+* **Red Hat Enterprise Linux** 8, 9, or 10 (RHEL-based distributions also supported)
+* Optional: access to virtualization platform (VMware, VirtualBox, Parallels, or oVirt) for guest tools installation
 
 ## Role Variables
 
@@ -33,7 +52,7 @@ If Parallels guest tools are required, ensure the [`oatakan.linux_parallels_tool
 
 ```yaml
 - name: Build RHEL template
-  hosts: build_host
+  hosts: rhel_hosts
   become: true
   roles:
     - role: oatakan.rhel_template_build
@@ -42,20 +61,22 @@ If Parallels guest tools are required, ensure the [`oatakan.linux_parallels_tool
         target_ovirt: false
 ```
 
-## Testing the role
+## Testing
 
-An automated GitHub Actions workflow runs `ansible-lint` and performs a playbook
-syntax check whenever changes are pushed. You can run the same checks locally by
-setting `ANSIBLE_ROLES_PATH` to point at the test roles directory:
+The role includes comprehensive automated testing to ensure functionality across supported systems.
+
+### Local Testing
+
+Run lint and syntax validation:
 
 ```bash
 ANSIBLE_ROLES_PATH=$(pwd)/tests/roles ansible-lint --offline
 ANSIBLE_ROLES_PATH=$(pwd)/tests/roles ansible-playbook -i tests/inventory tests/test.yml --syntax-check
 ```
 
-To execute integration tests in a containerized environment, install Molecule
-and its Docker plugin, then install the required Ansible collection before
-running the tests:
+### Integration Testing
+
+Execute integration tests using Molecule:
 
 ```bash
 pip install molecule molecule-plugins[docker]
@@ -63,15 +84,16 @@ ansible-galaxy collection install community.docker
 ANSIBLE_ROLES_PATH=$(pwd)/tests/roles molecule test
 ```
 
-Docker must be installed and the Docker daemon should be running before
-executing the Molecule scenario.
+**Requirements**: Docker must be installed and running. The test scenario validates role functionality across multiple RHEL and RHEL-compatible distributions using containerized environments.
 
-The scenario uses an `ansible.cfg` that sets `remote_tmp` to `/tmp` so
-temporary files can be created inside the container. Molecule sets the
-`ANSIBLE_CONFIG` environment variable so Ansible loads this configuration.
+The test suite uses an optimized `ansible.cfg` configuration with `remote_tmp` set to `/tmp` for container compatibility. Molecule automatically handles environment configuration.
 
-The Molecule scenario builds a container from `quay.io/rockylinux/rockylinux:9`
-and installs `systemd` and Python so the role can run in a Docker container.
+### Testing Coverage
+The automated testing validates functionality across:
+- **RHEL** (using Red Hat Universal Base Images)
+- **Rocky Linux** (RHEL compatibility)  
+- **AlmaLinux** (RHEL compatibility)
+- **Multiple deployment scenarios** (bare metal, VMs, containers)
 
 ## License
 

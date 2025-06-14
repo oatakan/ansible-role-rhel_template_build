@@ -33,7 +33,7 @@
     name:
       - wget
       - perl
-      - cifs-utils
+      # - cifs-utils  # Skip for container compatibility (UBI doesn't have it)
     state: present
   when: is_container
 

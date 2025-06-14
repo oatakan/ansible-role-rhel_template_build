@@ -1,3 +1,4 @@
+---
 name: CI
 
 on:
@@ -83,14 +84,24 @@ jobs:
       matrix:
         include:
           # Map friendly names to actual container images
+          - distro_name: "rhel-8"
+            molecule_distro: "registry.access.redhat.com/ubi8/ubi-init:latest"
+          - distro_name: "rhel-9"
+            molecule_distro: "registry.access.redhat.com/ubi9/ubi-init:latest"
+          - distro_name: "rhel-10"
+            molecule_distro: "registry.access.redhat.com/ubi10/ubi-init:latest"
           - distro_name: "rockylinux-8"
             molecule_distro: "quay.io/rockylinux/rockylinux:8"
           - distro_name: "rockylinux-9"
             molecule_distro: "quay.io/rockylinux/rockylinux:9"
+          - distro_name: "rockylinux-10"
+            molecule_distro: "quay.io/rockylinux/rockylinux:10"
           - distro_name: "almalinux-8"
-            molecule_distro: "quay.io/almalinux/almalinux:8"
+            molecule_distro: "quay.io/almalinuxorg/almalinux:8"
           - distro_name: "almalinux-9"
-            molecule_distro: "quay.io/almalinux/almalinux:9"
+            molecule_distro: "quay.io/almalinuxorg/almalinux:9"
+          - distro_name: "almalinux-10"
+            molecule_distro: "quay.io/almalinuxorg/almalinux:10"
 
     steps:
       - name: Checkout code
@@ -168,6 +179,7 @@ jobs:
         box:
           - generic/rocky8
           - generic/rocky9
+          - generic/rocky10
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

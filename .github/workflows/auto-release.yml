@@ -2,6 +2,7 @@
 name: Automated Release Pipeline
 
 on:
+  # Simple push trigger - branch protection ensures CI passed
   push:
     branches: [main, master]
   schedule:
@@ -54,6 +55,8 @@ jobs:
         run: |
           echo "### 🤖 AI Release Analysis" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Strategy:** Branch protection (CI pre-validated on PRs)" >> $GITHUB_STEP_SUMMARY
           echo "**Recommended Version Bump:** ${{ steps.analyze.outputs.version_bump }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Reasoning:**" >> $GITHUB_STEP_SUMMARY
@@ -180,6 +183,7 @@ jobs:
         run: |
           if [ "${{ needs.deploy-galaxy.result }}" == "success" ]; then
             echo "✅ Release successfully deployed to Ansible Galaxy!" >> $GITHUB_STEP_SUMMARY
+            echo "📦 **Release completed in $(( $(date +%s) - $(date -d '${{ github.event.head_commit.timestamp }}' +%s) )) seconds from push**" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ Release process failed. Check logs for details." >> $GITHUB_STEP_SUMMARY
           fi

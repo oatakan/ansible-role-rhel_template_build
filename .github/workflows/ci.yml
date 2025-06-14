@@ -3,8 +3,16 @@ name: ci
 
 on:
   pull_request:
-  push:
     branches: [main, master]
+    # Skip CI for documentation-only changes
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'CHANGELOG.md'
+      - '.gitignore'
+      - 'LICENSE'
+      - '.github/workflows/post-release-updates.yml'
+  # NO push trigger - this prevents CI from running after merge!
 
 env:
   ANSIBLE_ROLES_PATH: ${{ github.workspace }}/tests/roles

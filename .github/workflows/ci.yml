@@ -170,7 +170,7 @@ jobs:
   test-vagrant:
     runs-on: self-hosted
     needs: syntax-check
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     timeout-minutes: 60
     continue-on-error: true
     strategy:

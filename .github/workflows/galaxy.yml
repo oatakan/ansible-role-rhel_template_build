@@ -35,7 +35,7 @@ jobs:
           if [ "${{ github.event_name }}" = "push" ]; then
             echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           else
-            echo "VERSION=${{ github.event.inputs.tag_name || 'main' }}" >> $GITHUB_OUTPUT
+            echo "VERSION=${{ github.event.inputs.tag_name || 'master' }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Verify role metadata

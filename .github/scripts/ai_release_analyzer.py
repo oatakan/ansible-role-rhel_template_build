@@ -298,8 +298,9 @@ ansible-galaxy install oatakan.rhel_template_build,{version}
         latest_tag = self.get_latest_tag()
         commits = self.get_commits_since_tag(latest_tag)
 
-        if not commits and os.environ.get('FORCE_RELEASE') != 'true':
-            print("::set-output name=should_release::false")
+        if not commits and os.environ.get('FORCE_RELEASE', '').lower() != 'true':
+            with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                f.write("should_release=false\n")
             print("No commits since last release")
             return
 
@@ -322,12 +323,10 @@ ansible-galaxy install oatakan.rhel_template_build,{version}
         release_notes = self.generate_release_notes(analysis, f'v{new_version}')
 
         # Output for GitHub Actions
-        print(f"::set-output name=should_release::{str(analysis['should_release']).lower()}")
-        print(f"::set-output name=version_bump::{analysis['version_bump']}")
-        print(f"::set-output name=analysis_reasoning::{analysis['reasoning']}")
-
-        # Save outputs to files to handle multiline content
         with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+            f.write(f"should_release={str(analysis['should_release']).lower()}\n")
+            f.write(f"version_bump={analysis['version_bump']}\n")
+            f.write(f"analysis_reasoning={analysis['reasoning']}\n")
             f.write(f"changelog_entry<<EOF\n{analysis['changelog_entry']}\nEOF\n")
             f.write(f"release_notes<<EOF\n{release_notes}\nEOF\n")
 

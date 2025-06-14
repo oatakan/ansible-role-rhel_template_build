@@ -46,6 +46,7 @@ jobs:
           python .github/scripts/ai_release_analyzer.py
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FORCE_RELEASE: ${{ github.event.inputs.force_release }}
 
       - name: Post analysis summary
         if: steps.analyze.outputs.should_release == 'true'
@@ -129,7 +130,7 @@ jobs:
         run: |
           git tag -a "${{ steps.version.outputs.NEW_TAG }}" \
             -m "Release ${{ steps.version.outputs.NEW_TAG }}"
-          git push origin main "${{ steps.version.outputs.NEW_TAG }}"
+          git push origin master "${{ steps.version.outputs.NEW_TAG }}"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1

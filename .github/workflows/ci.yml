@@ -91,13 +91,11 @@ jobs:
           - distro_name: "rockylinux-10"
             molecule_distro: "quay.io/rockylinux/rockylinux:10"
           - distro_name: "almalinux-8"
-            molecule_distro: "quay.io/almalinux/almalinux:8"
+            molecule_distro: "quay.io/almalinuxorg/almalinux:8"
           - distro_name: "almalinux-9"
-            molecule_distro: "quay.io/almalinux/almalinux:9"
-          - distro_name: "almalinux-8"
-            molecule_distro: "quay.io/almalinux/almalinux:8"
+            molecule_distro: "quay.io/almalinuxorg/almalinux:9"
           - distro_name: "almalinux-10"
-            molecule_distro: "quay.io/almalinux/almalinux:10"
+            molecule_distro: "quay.io/almalinuxorg/almalinux:10"
 
     steps:
       - name: Checkout code

@@ -2,9 +2,15 @@
 name: Automated Release Pipeline
 
 on:
-  # Simple push trigger - branch protection ensures CI passed
+  # Simple push trigger - but with smart filtering to prevent loops
   push:
     branches: [main, master]
+    # Ignore pushes that only affect documentation/release files
+    paths-ignore:
+      - 'CHANGELOG.md'
+      - 'docs/**'
+      - '*.md'
+      - '.github/workflows/post-release-updates.yml'
   schedule:
     - cron: '0 0 * * 0'  # Weekly on Sunday for accumulated changes
   workflow_dispatch:
@@ -19,8 +25,70 @@ env:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
 jobs:
+  # Check if we should skip this release cycle
+  check-release-needed:
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.check.outputs.should_skip }}
+      skip_reason: ${{ steps.check.outputs.skip_reason }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # Get current and previous commit
+
+      - name: Check if release should be skipped
+        id: check
+        run: |
+          # Get the latest commit info
+          COMMIT_AUTHOR=$(git log -1 --pretty=format:"%an")
+          COMMIT_EMAIL=$(git log -1 --pretty=format:"%ae")
+          COMMIT_MSG=$(git log -1 --pretty=format:"%s")
+          
+          echo "Commit author: $COMMIT_AUTHOR"
+          echo "Commit email: $COMMIT_EMAIL"
+          echo "Commit message: $COMMIT_MSG"
+          
+          # Skip if this was made by github-actions bot
+          if [[ "$COMMIT_AUTHOR" == "github-actions[bot]" ]] || [[ "$COMMIT_EMAIL" == *"github-actions"* ]]; then
+            echo "⚠️ Skipping release - commit made by GitHub Actions bot"
+            echo "should_skip=true" >> $GITHUB_OUTPUT
+            echo "skip_reason=bot_commit" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Skip if commit message indicates a release or post-release update
+          if [[ "$COMMIT_MSG" == *"chore: release"* ]] || [[ "$COMMIT_MSG" == *"post-release updates"* ]] || [[ "$COMMIT_MSG" == *"[skip release]"* ]]; then
+            echo "⚠️ Skipping release - commit appears to be release-related"
+            echo "should_skip=true" >> $GITHUB_OUTPUT
+            echo "skip_reason=release_commit" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Check if only documentation files changed
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+          echo "Changed files: $CHANGED_FILES"
+          
+          # Count non-documentation changes
+          NON_DOC_CHANGES=$(echo "$CHANGED_FILES" | grep -v -E '\.(md|txt)$|^docs/|^CHANGELOG|^\.github/workflows/post-release' | wc -l)
+          
+          if [[ $NON_DOC_CHANGES -eq 0 ]] && [[ -n "$CHANGED_FILES" ]]; then
+            echo "⚠️ Skipping release - only documentation files changed"
+            echo "should_skip=true" >> $GITHUB_OUTPUT
+            echo "skip_reason=docs_only" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Proceed with release
+          echo "✅ Release should proceed - meaningful code changes detected"
+          echo "should_skip=false" >> $GITHUB_OUTPUT
+          echo "skip_reason=none" >> $GITHUB_OUTPUT
+
   analyze-changes:
     runs-on: ubuntu-latest
+    needs: check-release-needed
+    # Only run if we shouldn't skip
+    if: needs.check-release-needed.outputs.should_skip == 'false'
     outputs:
       should_release: ${{ steps.analyze.outputs.should_release }}
       version_bump: ${{ steps.analyze.outputs.version_bump }}
@@ -57,14 +125,15 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
           echo "**Strategy:** Branch protection (CI pre-validated on PRs)" >> $GITHUB_STEP_SUMMARY
+          echo "**Loop Prevention:** Passed (no bot commits or docs-only changes)" >> $GITHUB_STEP_SUMMARY
           echo "**Recommended Version Bump:** ${{ steps.analyze.outputs.version_bump }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Reasoning:**" >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.analyze.outputs.analysis_reasoning }}" >> $GITHUB_STEP_SUMMARY
 
   create-release:
-    needs: analyze-changes
-    if: needs.analyze-changes.outputs.should_release == 'true' || github.event.inputs.force_release == 'true'
+    needs: [check-release-needed, analyze-changes]
+    if: needs.check-release-needed.outputs.should_skip == 'false' && (needs.analyze-changes.outputs.should_release == 'true' || github.event.inputs.force_release == 'true')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -113,41 +182,47 @@ jobs:
           print(f'NEW_TAG=v{new_version}')
           " >> $GITHUB_OUTPUT
 
-      - name: Update CHANGELOG.md
+      - name: Update CHANGELOG.md (locally only)
         run: |
           python .github/scripts/update_changelog.py \
             --version "${{ steps.version.outputs.NEW_VERSION }}" \
             --entry "${{ needs.analyze-changes.outputs.changelog_entry }}"
 
-      - name: Update documentation with AI
+      - name: Update documentation with AI (locally only)
         run: |
           python .github/scripts/ai_doc_updater.py \
             --version "${{ steps.version.outputs.NEW_VERSION }}"
 
-      - name: Create release commit
-        run: |
-          git add -A
-          git commit -m "chore: release ${{ steps.version.outputs.NEW_TAG }} [skip ci]
-
-          ${{ needs.analyze-changes.outputs.changelog_entry }}"
-
-      - name: Create and push tag
+      # Don't commit changes to master - just create the tag and release
+      - name: Create and push tag (without committing to master)
         run: |
           git tag -a "${{ steps.version.outputs.NEW_TAG }}" \
-            -m "Release ${{ steps.version.outputs.NEW_TAG }}"
-          git push origin ${GITHUB_REF#refs/heads/} "${{ steps.version.outputs.NEW_TAG }}"
+            -m "Release ${{ steps.version.outputs.NEW_TAG }}
 
-      - name: Create GitHub Release
+          ${{ needs.analyze-changes.outputs.changelog_entry }}"
+          git push origin "${{ steps.version.outputs.NEW_TAG }}"
+
+      - name: Create GitHub Release with enhanced notes
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.version.outputs.NEW_TAG }}
           name: ${{ steps.version.outputs.NEW_TAG }}
-          body: ${{ needs.analyze-changes.outputs.release_notes }}
+          body: |
+            ${{ needs.analyze-changes.outputs.release_notes }}
+            
+            ## 📋 Changelog Entry
+            ${{ needs.analyze-changes.outputs.changelog_entry }}
+            
+            ## 🚀 Installation
+            ```bash
+            ansible-galaxy install oatakan.rhel_template_build:${{ steps.version.outputs.NEW_VERSION }}
+            ```
           draft: false
           prerelease: false
 
   deploy-galaxy:
-    needs: [analyze-changes, create-release]
+    needs: [check-release-needed, analyze-changes, create-release]
+    if: needs.check-release-needed.outputs.should_skip == 'false'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -175,13 +250,33 @@ jobs:
           ansible-galaxy role info oatakan.rhel_template_build
 
   notify:
-    needs: [create-release, deploy-galaxy]
+    needs: [check-release-needed, create-release, deploy-galaxy]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Send notification
         run: |
-          if [ "${{ needs.deploy-galaxy.result }}" == "success" ]; then
+          if [[ "${{ needs.check-release-needed.outputs.should_skip }}" == "true" ]]; then
+            echo "### ⏭️ Release Skipped" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            case "${{ needs.check-release-needed.outputs.skip_reason }}" in
+              "bot_commit")
+                echo "**Reason:** Commit made by GitHub Actions bot (prevents infinite loops)" >> $GITHUB_STEP_SUMMARY
+                echo "**Action:** This is expected behavior for automated commits" >> $GITHUB_STEP_SUMMARY
+                ;;
+              "release_commit")
+                echo "**Reason:** Commit appears to be release-related" >> $GITHUB_STEP_SUMMARY
+                echo "**Action:** This prevents release cycles from triggering more releases" >> $GITHUB_STEP_SUMMARY
+                ;;
+              "docs_only")
+                echo "**Reason:** Only documentation files were changed" >> $GITHUB_STEP_SUMMARY
+                echo "**Action:** Documentation updates don't require new releases" >> $GITHUB_STEP_SUMMARY
+                ;;
+              *)
+                echo "**Reason:** ${{ needs.check-release-needed.outputs.skip_reason }}" >> $GITHUB_STEP_SUMMARY
+                ;;
+            esac
+          elif [ "${{ needs.deploy-galaxy.result }}" == "success" ]; then
             echo "✅ Release successfully deployed to Ansible Galaxy!" >> $GITHUB_STEP_SUMMARY
             echo "📦 **Release completed in $(( $(date +%s) - $(date -d '${{ github.event.head_commit.timestamp }}' +%s) )) seconds from push**" >> $GITHUB_STEP_SUMMARY
           else

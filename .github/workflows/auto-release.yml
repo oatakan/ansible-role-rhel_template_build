@@ -1,0 +1,171 @@
+---
+name: Automated Release Pipeline
+
+on:
+  push:
+    branches: [main, master]
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly on Sunday for accumulated changes
+  workflow_dispatch:
+    inputs:
+      force_release:
+        description: 'Force a release even without changes'
+        type: boolean
+        default: false
+
+env:
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+jobs:
+  analyze-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.analyze.outputs.should_release }}
+      version_bump: ${{ steps.analyze.outputs.version_bump }}
+      release_notes: ${{ steps.analyze.outputs.release_notes }}
+      changelog_entry: ${{ steps.analyze.outputs.changelog_entry }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for analysis
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install AI analyzer
+        run: |
+          pip install openai anthropic GitPython semver pyyaml
+
+      - name: Analyze changes with AI
+        id: analyze
+        run: |
+          python .github/scripts/ai_release_analyzer.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Post analysis summary
+        if: steps.analyze.outputs.should_release == 'true'
+        run: |
+          echo "### 🤖 AI Release Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Recommended Version Bump:** ${{ steps.analyze.outputs.version_bump }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Reasoning:**" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.analyze.outputs.analysis_reasoning }}" >> $GITHUB_STEP_SUMMARY
+
+  create-release:
+    needs: analyze-changes
+    if: needs.analyze-changes.outputs.should_release == 'true' || github.event.inputs.force_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Calculate new version
+        id: version
+        run: |
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          LATEST_VERSION=${LATEST_TAG#v}
+          
+          python -c "
+          import semver
+          version = semver.Version.parse('$LATEST_VERSION')
+          bump_type = '${{ needs.analyze-changes.outputs.version_bump }}'
+          
+          if bump_type == 'major':
+              new_version = version.bump_major()
+          elif bump_type == 'minor':
+              new_version = version.bump_minor()
+          else:
+              new_version = version.bump_patch()
+          
+          print(f'NEW_VERSION={new_version}')
+          print(f'NEW_TAG=v{new_version}')
+          " >> $GITHUB_OUTPUT
+
+      - name: Update CHANGELOG.md
+        run: |
+          python .github/scripts/update_changelog.py \
+            --version "${{ steps.version.outputs.NEW_VERSION }}" \
+            --entry "${{ needs.analyze-changes.outputs.changelog_entry }}"
+
+      - name: Update documentation with AI
+        run: |
+          python .github/scripts/ai_doc_updater.py \
+            --version "${{ steps.version.outputs.NEW_VERSION }}"
+
+      - name: Create release commit
+        run: |
+          git add -A
+          git commit -m "chore: release ${{ steps.version.outputs.NEW_TAG }} [skip ci]
+
+          ${{ needs.analyze-changes.outputs.changelog_entry }}"
+
+      - name: Create and push tag
+        run: |
+          git tag -a "${{ steps.version.outputs.NEW_TAG }}" \
+            -m "Release ${{ steps.version.outputs.NEW_TAG }}"
+          git push origin main "${{ steps.version.outputs.NEW_TAG }}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.NEW_TAG }}
+          name: ${{ steps.version.outputs.NEW_TAG }}
+          body: ${{ needs.analyze-changes.outputs.release_notes }}
+          draft: false
+          prerelease: false
+
+  deploy-galaxy:
+    needs: [analyze-changes, create-release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.create-release.outputs.tag_name }}
+
+      - name: Install ansible-core
+        run: |
+          pip install ansible-core
+
+      - name: Import to Ansible Galaxy
+        env:
+          ANSIBLE_GALAXY_API_KEY: ${{ secrets.ANSIBLE_GALAXY_API_KEY }}
+        run: |
+          ansible-galaxy role import \
+            --api-key="${ANSIBLE_GALAXY_API_KEY}" \
+            oatakan rhel_template_build
+
+      - name: Verify Galaxy import
+        run: |
+          sleep 30  # Wait for Galaxy to process
+          ansible-galaxy role info oatakan.rhel_template_build
+
+  notify:
+    needs: [create-release, deploy-galaxy]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send notification
+        run: |
+          if [ "${{ needs.deploy-galaxy.result }}" == "success" ]; then
+            echo "✅ Release successfully deployed to Ansible Galaxy!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Release process failed. Check logs for details." >> $GITHUB_STEP_SUMMARY
+          fi

@@ -1,5 +1,6 @@
 # oatakan.rhel_template_build
 
+[![Galaxy Version](https://img.shields.io/badge/galaxy-v0.0.1-blue.svg)](https://galaxy.ansible.com/oatakan/rhel_template_build)
 [![CI](https://github.com/oatakan/ansible-role-rhel_template_build/actions/workflows/ci.yml/badge.svg)](https://github.com/oatakan/ansible-role-rhel_template_build/actions/workflows/ci.yml)
 [![VM Tests](https://github.com/oatakan/ansible-role-rhel_template_build/actions/workflows/vm-test.yml/badge.svg)](https://github.com/oatakan/ansible-role-rhel_template_build/actions/workflows/vm-test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)

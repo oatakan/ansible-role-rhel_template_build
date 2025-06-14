@@ -115,33 +115,47 @@ jobs:
         run: |
           echo "🤖 Running AI release analysis..."
           
-          # Run the AI analysis
-          python .github/scripts/ai_release_analyzer.py
+          # Run the AI analysis and capture output
+          python .github/scripts/ai_release_analyzer.py > ai_analysis_output.log 2>&1
           
-          # The script should set outputs, but let's also parse them here
-          if [ -f /tmp/release_analysis.json ]; then
-            # Parse outputs from the analysis file
-            SHOULD_RELEASE=$(cat /tmp/release_analysis.json | jq -r '.should_release // "false"')
-            VERSION_BUMP=$(cat /tmp/release_analysis.json | jq -r '.version_bump // "patch"')
-            REASONING=$(cat /tmp/release_analysis.json | jq -r '.reasoning // "No reasoning provided"')
+          # Display the output for debugging
+          echo "📋 AI Analysis Output:"
+          cat ai_analysis_output.log
+          
+          # Parse the output from the log
+          if grep -q "📋 Analysis:" ai_analysis_output.log; then
+            # Extract version bump from output
+            VERSION_BUMP=$(grep "📋 Analysis:" ai_analysis_output.log | sed 's/.*Analysis: \([a-z]*\) bump.*/\1/')
+            NEW_VERSION=$(grep "📋 Analysis:" ai_analysis_output.log | sed 's/.*→ \(v[0-9.]*\).*/\1/')
+            REASONING=$(grep "💭 Reasoning:" ai_analysis_output.log | sed 's/💭 Reasoning: //')
             
-            echo "should_release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
+            echo "📊 Parsed Results:"
+            echo "- Version Bump: $VERSION_BUMP"
+            echo "- New Version: $NEW_VERSION" 
+            echo "- Reasoning: $REASONING"
+            
+            # Set outputs
+            echo "should_release=true" >> $GITHUB_OUTPUT
             echo "version_bump=$VERSION_BUMP" >> $GITHUB_OUTPUT
+            echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
             echo "analysis_reasoning=$REASONING" >> $GITHUB_OUTPUT
             
-            echo "📊 Analysis Results:"
-            echo "- Should Release: $SHOULD_RELEASE"
-            echo "- Version Bump: $VERSION_BUMP" 
-            echo "- Reasoning: $REASONING"
-          else
-            # Fallback: If AI analysis file doesn't exist, check the log output
-            echo "⚠️ Analysis file not found, attempting to parse from output..."
+            # Create analysis file for other jobs
+            cat > /tmp/release_analysis.json << EOF
+          {
+            "should_release": true,
+            "version_bump": "$VERSION_BUMP",
+            "new_version": "$NEW_VERSION",
+            "reasoning": "$REASONING"
+          }
+          EOF
             
-            # For now, if we see version bump output, assume we should release
-            # This is a temporary fix until we debug the AI script
-            echo "should_release=true" >> $GITHUB_OUTPUT
-            echo "version_bump=patch" >> $GITHUB_OUTPUT
-            echo "analysis_reasoning=AI analysis completed but output parsing needs debugging" >> $GITHUB_OUTPUT
+            echo "✅ Analysis completed successfully"
+          else
+            echo "❌ Could not parse AI analysis output"
+            echo "should_release=false" >> $GITHUB_OUTPUT
+            echo "analysis_reasoning=Failed to parse AI analysis output" >> $GITHUB_OUTPUT
+            exit 1
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -225,11 +239,35 @@ jobs:
       # Don't commit changes to master - just create the tag and release
       - name: Create and push tag (without committing to master)
         run: |
-          git tag -a "${{ steps.version.outputs.NEW_TAG }}" \
-            -m "Release ${{ steps.version.outputs.NEW_TAG }}
+          NEW_TAG="${{ steps.version.outputs.NEW_TAG }}"
+          NEW_VERSION="${{ steps.version.outputs.NEW_VERSION }}"
+          
+          echo "🏷️ Creating tag: $NEW_TAG"
+          echo "📦 Version: $NEW_VERSION"
+          
+          # Double-check tag doesn't exist
+          if git tag -l | grep -q "^${NEW_TAG}$"; then
+            echo "❌ ERROR: Tag $NEW_TAG already exists!"
+            echo "🔍 Current tags:"
+            git tag -l | sort -V
+            echo ""
+            echo "🤖 AI suggested version: ${{ needs.analyze-changes.outputs.new_version }}"
+            echo "📊 Version bump type: ${{ needs.analyze-changes.outputs.version_bump }}"
+            exit 1
+          fi
+          
+          # Create the tag with release notes
+          git tag -a "$NEW_TAG" \
+            -m "Release $NEW_TAG
 
           ${{ needs.analyze-changes.outputs.changelog_entry }}"
-          git push origin "${{ steps.version.outputs.NEW_TAG }}"
+          
+          echo "✅ Tag created successfully"
+          
+          # Push the tag
+          git push origin "$NEW_TAG"
+          
+          echo "✅ Tag pushed to remote"
 
       - name: Create GitHub Release with enhanced notes
         uses: softprops/action-gh-release@v1

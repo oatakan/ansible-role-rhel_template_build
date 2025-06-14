@@ -84,6 +84,12 @@ jobs:
       matrix:
         include:
           # Map friendly names to actual container images
+          - distro_name: "rhel-8"
+            molecule_distro: "registry.access.redhat.com/ubi8/ubi-init:8.10"
+          - distro_name: "rhel-9"
+            molecule_distro: "registry.access.redhat.com/ubi9/ubi-init:9.6"
+          - distro_name: "rhel-10"
+            molecule_distro: "registry.access.redhat.com/ubi10/ubi-init:10.0"
           - distro_name: "rockylinux-8"
             molecule_distro: "quay.io/rockylinux/rockylinux:8"
           - distro_name: "rockylinux-9"

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 AI-powered PR analyzer that enriches pull requests with intelligent insights
+Now uses ai_utils.py for unified AI client management and prompt templates
 """
 
 import os
@@ -11,11 +12,10 @@ import re
 from typing import Dict, List, Optional
 
 try:
-    import openai
-    from anthropic import Anthropic
     from github import Github
     import git
     import yaml
+    from ai_utils import AIClient
 except ImportError as e:
     print(f"Error: Missing required package: {e}")
     sys.exit(1)
@@ -32,21 +32,12 @@ class AIPRAnalyzer:
         self.repo = self.github.get_repo(self.repo_name)
         self.pr = self.repo.get_pull(pr_number)
 
-        # Initialize AI clients
-        self.setup_ai_clients()
-
-    def setup_ai_clients(self):
-        """Setup AI clients based on available API keys"""
-        self.openai_api_key = os.environ.get('OPENAI_API_KEY')
-        self.anthropic_api_key = os.environ.get('ANTHROPIC_API_KEY')
-
-        if self.openai_api_key:
-            openai.api_key = self.openai_api_key
-            self.ai_client = 'openai'
-        elif self.anthropic_api_key:
-            self.anthropic = Anthropic(api_key=self.anthropic_api_key)
-            self.ai_client = 'anthropic'
-        else:
+        # Initialize AI client
+        try:
+            self.ai_client = AIClient()
+            print(f"🤖 AI Client ready: {self.ai_client.active_provider}")
+        except Exception as e:
+            print(f"Warning: AI client initialization failed: {e}")
             self.ai_client = None
 
     def get_pr_diff(self) -> str:
@@ -65,88 +56,88 @@ class AIPRAnalyzer:
     def analyze_pr_with_ai(self, diff: str) -> Dict:
         """Use AI to analyze the PR"""
 
-        prompt = f"""Analyze this Ansible role pull request and provide insights.
+        if not self.ai_client or not self.ai_client.active_provider:
+            print("🔄 AI not available, using basic analysis")
+            return self.basic_analysis()
 
-PR Title: {self.pr.title}
-PR Description: {self.pr.body or 'No description provided'}
-
-Changed Files:
-{chr(10).join([f.filename for f in self.pr.get_files()])}
-
-Sample Diff:
-{diff[:3000]}
-
-Provide a comprehensive analysis including:
-1. Summary of changes (2-3 sentences)
-2. Type of change (feature/bugfix/enhancement/breaking)
-3. Risk assessment (low/medium/high)
-4. Testing recommendations
-5. Code quality observations
-6. Compatibility concerns
-7. Documentation needs
-
-Format as JSON with these keys:
-- summary: str
-- change_type: str
-- risk_level: str
-- testing_recommendations: list[str]
-- code_quality_notes: list[str]
-- compatibility_notes: list[str]
-- documentation_needs: list[str]
-- suggested_reviewers: list[str] (based on expertise needed)
-- estimated_review_time: str (in minutes)"""
+        # Prepare template variables
+        template_variables = {
+            'pr_title': self.pr.title,
+            'pr_description': self.pr.body or 'No description provided',
+            'changed_files': "\n".join([f.filename for f in self.pr.get_files()]),
+            'diff_sample': diff[:3000]  # Limit diff size for token management
+        }
 
         try:
-            if self.ai_client == 'openai':
-                response = openai.ChatCompletion.create(
-                    model="gpt-4",
-                    messages=[
-                        {"role": "system", "content": "You are an expert Ansible developer and code reviewer."},
-                        {"role": "user", "content": prompt}
-                    ],
-                    temperature=0.3
-                )
-                return json.loads(response.choices[0].message.content)
+            print("🔍 Analyzing PR with AI...")
 
-            elif self.ai_client == 'anthropic':
-                response = self.anthropic.messages.create(
-                    model="claude-3-sonnet-20240229",
-                    max_tokens=1500,
-                    temperature=0.3,
-                    system="You are an expert Ansible developer and code reviewer.",
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                return json.loads(response.content[0].text)
-        except:
+            # Use the AI client with prompt template
+            result = self.ai_client.call_ai('pr_analysis', template_variables)
+
+            if result['content']:
+                analysis = json.loads(result['content'])
+
+                # Log usage if debugging is enabled
+                if self.ai_client.config.get('debug', {}).get('estimate_costs', True):
+                    self.ai_client.log_debug_info()
+
+                return analysis
+            else:
+                print("⚠️  AI analysis failed, falling back to basic analysis")
+                return self.basic_analysis()
+
+        except Exception as e:
+            print(f"⚠️  AI analysis error: {e}")
             return self.basic_analysis()
 
     def basic_analysis(self) -> Dict:
         """Fallback basic analysis without AI"""
+        print("🔧 Using basic analysis")
+
         files = list(self.pr.get_files())
 
         # Determine change type
         change_type = 'enhancement'
         if 'fix' in self.pr.title.lower():
             change_type = 'bugfix'
-        elif 'feat' in self.pr.title.lower():
+        elif 'feat' in self.pr.title.lower() or 'add' in self.pr.title.lower():
             change_type = 'feature'
+        elif 'break' in self.pr.title.lower() or '!' in self.pr.title:
+            change_type = 'breaking'
 
         # Risk assessment based on files changed
         risk_level = 'low'
-        if any('tasks/main.yml' in f.filename for f in files):
+        critical_files = ['tasks/main.yml', 'defaults/main.yml', 'meta/main.yml']
+
+        if any(f.filename in critical_files for f in files):
             risk_level = 'medium'
         if any(f.filename.startswith('defaults/') for f in files):
             risk_level = 'high'
+        if len(files) > 10:
+            risk_level = 'high'
 
         return {
-            'summary': f"PR modifies {len(files)} files",
+            'summary': f"PR modifies {len(files)} files with {change_type} changes",
             'change_type': change_type,
             'risk_level': risk_level,
-            'testing_recommendations': ['Run molecule tests', 'Test on target platforms'],
-            'code_quality_notes': ['Manual review required'],
+            'testing_recommendations': [
+                'Run molecule tests with multiple OS versions',
+                'Test idempotency (run role twice)',
+                'Verify on target platforms',
+                'Check for syntax errors with ansible-lint'
+            ],
+            'code_quality_notes': [
+                'Manual review recommended for critical files',
+                'Verify YAML syntax and formatting',
+                'Check for Ansible best practices'
+            ],
             'compatibility_notes': [],
-            'documentation_needs': ['Update README if needed'],
-            'suggested_reviewers': [],
+            'documentation_needs': [
+                'Update README if new variables added',
+                'Document any breaking changes',
+                'Update examples if behavior changed'
+            ],
+            'suggested_reviewers': ['ansible-experts', 'platform-team'],
             'estimated_review_time': '15-30'
         }
 
@@ -193,7 +184,7 @@ You can interact with the AI assistant using these commands in comments:
 
 </details>
 
-<sub>This analysis was performed by AI and should be verified by human reviewers.</sub>"""
+<sub>This analysis was performed by AI ({self.ai_client.active_provider if self.ai_client else 'basic'}) and should be verified by human reviewers.</sub>"""
 
         return comment
 
@@ -220,17 +211,22 @@ auto_generated: true
 ### Changes Made
 {current_body}
 
-### Testing
+### Testing Checklist
 {chr(10).join(f'- [ ] {rec}' for rec in analysis['testing_recommendations'])}
 
-### Checklist
+### Review Checklist
 - [ ] Tests pass locally
 - [ ] Documentation updated
 - [ ] Changelog entry added (if needed)
 - [ ] Breaking changes documented (if any)
+- [ ] Security implications reviewed
 """
 
-        self.pr.edit(body=metadata)
+        try:
+            self.pr.edit(body=metadata)
+            print("✅ Updated PR description")
+        except Exception as e:
+            print(f"Warning: Could not update PR description: {e}")
 
     def add_labels(self, analysis: Dict):
         """Add appropriate labels based on analysis"""
@@ -238,16 +234,21 @@ auto_generated: true
         labels_to_add = []
 
         # Change type labels
-        if analysis['change_type'] == 'bugfix':
-            labels_to_add.append('bug')
-        elif analysis['change_type'] == 'feature':
-            labels_to_add.append('enhancement')
-        elif analysis['change_type'] == 'breaking':
-            labels_to_add.append('breaking-change')
+        change_type_map = {
+            'bugfix': 'bug',
+            'feature': 'enhancement',
+            'breaking': 'breaking-change',
+            'chore': 'maintenance'
+        }
+
+        if analysis['change_type'] in change_type_map:
+            labels_to_add.append(change_type_map[analysis['change_type']])
 
         # Risk labels
         if analysis['risk_level'] == 'high':
             labels_to_add.append('needs-careful-review')
+        elif analysis['risk_level'] == 'medium':
+            labels_to_add.append('review-required')
 
         # Documentation labels
         if analysis['documentation_needs']:
@@ -256,15 +257,22 @@ auto_generated: true
         # Add labels if they exist in the repo
         try:
             repo_labels = {label.name for label in self.repo.get_labels()}
+            added_labels = []
+
             for label in labels_to_add:
                 if label in repo_labels:
                     self.pr.add_to_labels(label)
-        except:
-            pass
+                    added_labels.append(label)
+
+            if added_labels:
+                print(f"✅ Added labels: {', '.join(added_labels)}")
+
+        except Exception as e:
+            print(f"Warning: Could not add labels: {e}")
 
     def run(self):
         """Main execution flow"""
-        print(f"Analyzing PR #{self.pr_number}")
+        print(f"🔍 Analyzing PR #{self.pr_number}: {self.pr.title}")
 
         # Get PR diff
         diff = self.get_pr_diff()
@@ -272,15 +280,31 @@ auto_generated: true
         # Analyze with AI
         analysis = self.analyze_pr_with_ai(diff)
 
+        print(f"📊 Analysis complete:")
+        print(f"  - Change Type: {analysis['change_type']}")
+        print(f"  - Risk Level: {analysis['risk_level']}")
+        print(f"  - Tests Needed: {len(analysis['testing_recommendations'])}")
+
         # Generate and post comment
         comment = self.generate_pr_comment(analysis)
-        self.pr.create_issue_comment(comment)
+        try:
+            self.pr.create_issue_comment(comment)
+            print("✅ Posted analysis comment")
+        except Exception as e:
+            print(f"Warning: Could not post comment: {e}")
 
         # Update PR description
         self.update_pr_description(analysis)
 
         # Add labels
         self.add_labels(analysis)
+
+        # Show usage summary if AI was used
+        if self.ai_client and self.ai_client.usage_stats['requests'] > 0:
+            usage = self.ai_client.get_usage_summary()
+            print(f"💰 AI Usage: {usage['requests_made']} requests, "
+                  f"{usage['total_tokens']} tokens, "
+                  f"~${usage['estimated_cost_usd']}")
 
         print(f"✅ Successfully enriched PR #{self.pr_number}")
 

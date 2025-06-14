@@ -29,7 +29,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install openai anthropic PyGithub GitPython pyyaml
+          python -m pip install --upgrade pip
+          pip install -r .github/scripts/requirements.txt
 
       - name: Analyze PR with AI
         env:
@@ -57,7 +58,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install openai anthropic PyGithub
+          python -m pip install --upgrade pip
+          pip install -r .github/scripts/requirements.txt
 
       - name: Process AI command
         env:

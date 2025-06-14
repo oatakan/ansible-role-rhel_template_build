@@ -36,9 +36,10 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install AI analyzer
+      - name: Install dependencies
         run: |
-          pip install openai anthropic GitPython semver pyyaml
+          python -m pip install --upgrade pip
+          pip install -r .github/scripts/requirements.txt
 
       - name: Analyze changes with AI
         id: analyze
@@ -77,9 +78,10 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install AI analyzer
+      - name: Install dependencies
         run: |
-          pip install openai anthropic GitPython semver pyyaml
+          python -m pip install --upgrade pip
+          pip install -r .github/scripts/requirements.txt
 
       - name: Configure Git
         run: |
@@ -130,7 +132,7 @@ jobs:
         run: |
           git tag -a "${{ steps.version.outputs.NEW_TAG }}" \
             -m "Release ${{ steps.version.outputs.NEW_TAG }}"
-          git push origin master "${{ steps.version.outputs.NEW_TAG }}"
+          git push origin ${GITHUB_REF#refs/heads/} "${{ steps.version.outputs.NEW_TAG }}"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -158,9 +160,11 @@ jobs:
         env:
           ANSIBLE_GALAXY_API_KEY: ${{ secrets.ANSIBLE_GALAXY_API_KEY }}
         run: |
+          # Use the exact GitHub repository name for Galaxy import
+          # Repository: oatakan/ansible-role-rhel_template_build
           ansible-galaxy role import \
             --api-key="${ANSIBLE_GALAXY_API_KEY}" \
-            oatakan rhel_template_build
+            oatakan ansible-role-rhel_template_build
 
       - name: Verify Galaxy import
         run: |

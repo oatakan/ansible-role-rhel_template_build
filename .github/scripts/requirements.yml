@@ -1,7 +1,0 @@
-# Python requirements for AI automation scripts
-openai>=1.0.0
-anthropic>=0.18.0
-PyGithub>=2.1.0
-GitPython>=3.1.40
-semver>=3.0.0
-pyyaml>=6.0

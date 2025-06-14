@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 AI-powered release analyzer that determines version bumps and generates release content
+Now uses configuration files and prompt templates for better maintainability
 """
 
 import os
@@ -12,14 +13,13 @@ from typing import Dict, List, Tuple, Optional
 import subprocess
 
 try:
-    import openai
-    from anthropic import Anthropic
     import git
     import semver
     import yaml
+    from ai_utils import AIClient
 except ImportError as e:
     print(f"Error: Missing required package: {e}")
-    print("Install with: pip install openai anthropic GitPython semver pyyaml")
+    print("Install with: pip install GitPython semver pyyaml")
     sys.exit(1)
 
 
@@ -27,18 +27,13 @@ class AIReleaseAnalyzer:
     def __init__(self):
         self.repo = git.Repo('.')
         self.github_token = os.environ.get('GITHUB_TOKEN')
-        self.openai_api_key = os.environ.get('OPENAI_API_KEY')
-        self.anthropic_api_key = os.environ.get('ANTHROPIC_API_KEY')
 
-        # Initialize AI clients
-        if self.openai_api_key:
-            openai.api_key = self.openai_api_key
-            self.ai_client = 'openai'
-        elif self.anthropic_api_key:
-            self.anthropic = Anthropic(api_key=self.anthropic_api_key)
-            self.ai_client = 'anthropic'
-        else:
-            print("Warning: No AI API keys found. Using rule-based analysis.")
+        # Initialize AI client with configuration
+        try:
+            self.ai_client = AIClient()
+            print(f"🤖 AI Client ready: {self.ai_client.active_provider}")
+        except Exception as e:
+            print(f"Warning: AI client initialization failed: {e}")
             self.ai_client = None
 
     def get_latest_tag(self) -> str:
@@ -57,7 +52,7 @@ class AIReleaseAnalyzer:
         try:
             if tag == 'v0.0.0':
                 # First release, get all commits
-                return list(self.repo.iter_commits('main'))
+                return list(self.repo.iter_commits('HEAD'))
             return list(self.repo.iter_commits(f'{tag}..HEAD'))
         except:
             return []
@@ -76,23 +71,29 @@ class AIReleaseAnalyzer:
         }
 
         for commit in commits:
-            for item in commit.diff(commit.parents[0] if commit.parents else None):
-                path = item.a_path or item.b_path
+            try:
+                for item in commit.diff(commit.parents[0] if commit.parents else None):
+                    path = item.a_path or item.b_path
+                    if not path:
+                        continue
 
-                if path.startswith('tasks/'):
-                    changes['tasks'].append(path)
-                elif path.startswith('vars/') or path.startswith('defaults/'):
-                    changes['vars'].append(path)
-                elif path.startswith('meta/'):
-                    changes['meta'].append(path)
-                elif path.startswith('tests/') or path.startswith('molecule/'):
-                    changes['tests'].append(path)
-                elif path.endswith('.md') or path.startswith('docs/'):
-                    changes['docs'].append(path)
-                elif path.startswith('.github/'):
-                    changes['ci'].append(path)
-                else:
-                    changes['other'].append(path)
+                    if path.startswith('tasks/'):
+                        changes['tasks'].append(path)
+                    elif path.startswith('vars/') or path.startswith('defaults/'):
+                        changes['vars'].append(path)
+                    elif path.startswith('meta/'):
+                        changes['meta'].append(path)
+                    elif path.startswith('tests/') or path.startswith('molecule/'):
+                        changes['tests'].append(path)
+                    elif path.endswith('.md') or path.startswith('docs/'):
+                        changes['docs'].append(path)
+                    elif path.startswith('.github/'):
+                        changes['ci'].append(path)
+                    else:
+                        changes['other'].append(path)
+            except Exception:
+                # Skip commits that can't be processed
+                continue
 
         # Deduplicate
         for key in changes:
@@ -103,7 +104,11 @@ class AIReleaseAnalyzer:
     def analyze_with_ai(self, commits: List[git.Commit], changed_files: Dict[str, List[str]]) -> Dict:
         """Use AI to analyze commits and determine version bump"""
 
-        # Prepare commit data
+        if not self.ai_client or not self.ai_client.active_provider:
+            print("🔄 AI not available, using rule-based analysis")
+            return self.rule_based_analysis(commits, changed_files)
+
+        # Prepare template variables
         commit_messages = [f"- {c.summary}" for c in commits[:50]]  # Limit to 50 most recent
         commit_text = "\n".join(commit_messages)
 
@@ -113,74 +118,38 @@ class AIReleaseAnalyzer:
             if files:
                 changes_summary.append(f"{category}: {len(files)} files changed")
 
-        prompt = f"""Analyze these changes to an Ansible role and determine the appropriate semantic version bump.
-
-Recent commits:
-{commit_text}
-
-File changes by category:
-{chr(10).join(changes_summary)}
-
-Changed files in tasks (core functionality):
-{chr(10).join(changed_files.get('tasks', [])[:10])}
-
-Rules for semantic versioning:
-- PATCH: Bug fixes, documentation, minor improvements
-- MINOR: New features, new variables (with defaults), new OS support
-- MAJOR: Breaking changes, removed features, changed defaults, dropped OS support
-
-Analyze the commits for:
-1. Breaking changes (removed vars, changed behavior, dropped support)
-2. New features (new functionality, new OS support)
-3. Bug fixes
-4. Whether a release is warranted
-
-Respond with a JSON object:
-{{
-    "should_release": true/false,
-    "version_bump": "major/minor/patch",
-    "reasoning": "Brief explanation",
-    "breaking_changes": ["list of breaking changes if any"],
-    "new_features": ["list of new features"],
-    "bug_fixes": ["list of bug fixes"],
-    "changelog_entry": "Formatted changelog entry text"
-}}"""
+        template_variables = {
+            'commit_text': commit_text,
+            'changes_summary': "\n".join(changes_summary),
+            'task_files': "\n".join(changed_files.get('tasks', [])[:10])
+        }
 
         try:
-            if self.ai_client == 'openai':
-                response = openai.ChatCompletion.create(
-                    model="gpt-4",
-                    messages=[
-                        {"role": "system",
-                         "content": "You are an expert in semantic versioning and Ansible development."},
-                        {"role": "user", "content": prompt}
-                    ],
-                    temperature=0.3
-                )
-                result = json.loads(response.choices[0].message.content)
+            print("🔍 Analyzing with AI...")
 
-            elif self.ai_client == 'anthropic':
-                response = self.anthropic.messages.create(
-                    model="claude-3-sonnet-20240229",
-                    max_tokens=1000,
-                    temperature=0.3,
-                    system="You are an expert in semantic versioning and Ansible development.",
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                result = json.loads(response.content[0].text)
+            # Use the AI client with prompt template
+            result = self.ai_client.call_ai('release_analysis', template_variables)
 
+            if result['content']:
+                analysis = json.loads(result['content'])
+
+                # Log usage if debugging is enabled
+                if self.ai_client.config.get('debug', {}).get('estimate_costs', True):
+                    self.ai_client.log_debug_info()
+
+                return analysis
             else:
-                # Fallback to rule-based analysis
-                result = self.rule_based_analysis(commits, changed_files)
-
-            return result
+                print("⚠️  AI analysis failed, falling back to rule-based")
+                return self.rule_based_analysis(commits, changed_files)
 
         except Exception as e:
-            print(f"AI analysis failed: {e}")
+            print(f"⚠️  AI analysis error: {e}")
             return self.rule_based_analysis(commits, changed_files)
 
     def rule_based_analysis(self, commits: List[git.Commit], changed_files: Dict[str, List[str]]) -> Dict:
         """Fallback rule-based analysis"""
+        print("🔧 Using rule-based analysis")
+
         version_bump = 'patch'
         breaking_changes = []
         new_features = []
@@ -190,7 +159,7 @@ Respond with a JSON object:
         for commit in commits:
             msg = commit.message.lower()
 
-            if any(word in msg for word in ['breaking', 'remove', 'drop support']):
+            if any(word in msg for word in ['breaking', 'remove', 'drop support', '!:']):
                 version_bump = 'major'
                 breaking_changes.append(commit.summary)
             elif any(word in msg for word in ['feat:', 'feature', 'add support', 'new']):
@@ -230,46 +199,22 @@ Respond with a JSON object:
         }
 
     def generate_release_notes(self, analysis: Dict, version: str) -> str:
-        """Generate comprehensive release notes"""
+        """Generate comprehensive release notes using AI or fallback"""
 
-        if self.ai_client:
-            prompt = f"""Generate engaging release notes for Ansible role version {version}.
-
-Analysis results:
-{json.dumps(analysis, indent=2)}
-
-Create release notes that:
-1. Start with a brief summary
-2. Highlight key changes
-3. Include upgrade instructions if breaking changes
-4. Add installation command
-5. Thank contributors
-
-Keep it concise but informative. Use emoji sparingly for key sections."""
-
+        if self.ai_client and self.ai_client.active_provider:
             try:
-                if self.ai_client == 'openai':
-                    response = openai.ChatCompletion.create(
-                        model="gpt-4",
-                        messages=[
-                            {"role": "system", "content": "You are a technical writer creating release notes."},
-                            {"role": "user", "content": prompt}
-                        ],
-                        temperature=0.7
-                    )
-                    return response.choices[0].message.content
+                template_variables = {
+                    'version': version,
+                    'analysis_results': json.dumps(analysis, indent=2)
+                }
 
-                elif self.ai_client == 'anthropic':
-                    response = self.anthropic.messages.create(
-                        model="claude-3-sonnet-20240229",
-                        max_tokens=1000,
-                        temperature=0.7,
-                        system="You are a technical writer creating release notes.",
-                        messages=[{"role": "user", "content": prompt}]
-                    )
-                    return response.content[0].text
-            except:
-                pass
+                result = self.ai_client.call_ai('release_notes', template_variables)
+
+                if result['content']:
+                    return result['content']
+
+            except Exception as e:
+                print(f"Warning: AI release notes generation failed: {e}")
 
         # Fallback template
         notes = f"""## 🎉 Release {version}
@@ -295,14 +240,18 @@ ansible-galaxy install oatakan.rhel_template_build,{version}
 
     def run(self):
         """Main analysis flow"""
+        print("🚀 Starting release analysis...")
+
         latest_tag = self.get_latest_tag()
         commits = self.get_commits_since_tag(latest_tag)
 
         if not commits and os.environ.get('FORCE_RELEASE', '').lower() != 'true':
             with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
                 f.write("should_release=false\n")
-            print("No commits since last release")
+            print("ℹ️  No commits since last release")
             return
+
+        print(f"📊 Analyzing {len(commits)} commits since {latest_tag}")
 
         changed_files = self.get_changed_files(commits)
         analysis = self.analyze_with_ai(commits, changed_files)
@@ -320,6 +269,9 @@ ansible-galaxy install oatakan.rhel_template_build,{version}
         except:
             new_version = '0.1.0'
 
+        print(f"📋 Analysis: {analysis['version_bump']} bump → v{new_version}")
+        print(f"💭 Reasoning: {analysis['reasoning']}")
+
         release_notes = self.generate_release_notes(analysis, f'v{new_version}')
 
         # Output for GitHub Actions
@@ -329,6 +281,13 @@ ansible-galaxy install oatakan.rhel_template_build,{version}
             f.write(f"analysis_reasoning={analysis['reasoning']}\n")
             f.write(f"changelog_entry<<EOF\n{analysis['changelog_entry']}\nEOF\n")
             f.write(f"release_notes<<EOF\n{release_notes}\nEOF\n")
+
+        # Show usage summary if AI was used
+        if self.ai_client and self.ai_client.usage_stats['requests'] > 0:
+            usage = self.ai_client.get_usage_summary()
+            print(f"💰 AI Usage: {usage['requests_made']} requests, "
+                  f"{usage['total_tokens']} tokens, "
+                  f"~${usage['estimated_cost_usd']}")
 
 
 if __name__ == '__main__':

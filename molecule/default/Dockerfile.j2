@@ -18,8 +18,36 @@ RUN dnf -y update --nogpgcheck --skip-broken && \
         hostname \
     && dnf clean all
 
-{% else %}
+{% elif '9' in item.image %}
 # Rocky/Alma Linux 9 packages
+RUN dnf -y update --nogpgcheck --skip-broken && \
+    dnf -y install --nogpgcheck --skip-broken \
+        systemd \
+        python3 \
+        openssh-server \
+        openssh-clients \
+        sudo \
+        passwd \
+        which \
+        hostname \
+    && dnf clean all
+
+{% elif '10' in item.image %}
+# Rocky/Alma Linux 10 packages (NEW!)
+RUN dnf -y update --nogpgcheck --skip-broken && \
+    dnf -y install --nogpgcheck --skip-broken \
+        systemd \
+        python3 \
+        openssh-server \
+        openssh-clients \
+        sudo \
+        passwd \
+        which \
+        hostname \
+    && dnf clean all
+
+{% else %}
+# Fallback for other versions (use v10 approach)
 RUN dnf -y update --nogpgcheck --skip-broken && \
     dnf -y install --nogpgcheck --skip-broken \
         systemd \
@@ -33,7 +61,7 @@ RUN dnf -y update --nogpgcheck --skip-broken && \
     && dnf clean all
 {% endif %}
 
-# Basic systemd cleanup
+# Basic systemd cleanup (works for all versions)
 RUN find /etc/systemd/system /lib/systemd/system \
     -path '*.wants/*' \
     \( -name '*getty*' -o -name '*systemd-tmpfiles*' -o -name '*systemd-update-utmp*' \) \
@@ -47,7 +75,7 @@ RUN ssh-keygen -A -q && \
     echo 'UseDNS no' >> /etc/ssh/sshd_config && \
     mkdir -p /var/run/sshd
 
-# Manual SSH service enabling (works in containers)
+# Manual SSH service enabling (works in containers for all versions)
 RUN mkdir -p /etc/systemd/system/multi-user.target.wants && \
     find /usr/lib/systemd/system /lib/systemd/system -name 'ssh*.service' -type f | head -1 | \
     xargs -I {} ln -sf {} /etc/systemd/system/multi-user.target.wants/ 2>/dev/null || true
@@ -57,7 +85,7 @@ RUN mkdir -p /tmp /var/tmp /run /run/lock && \
     chmod 1777 /tmp /var/tmp /run/lock && \
     chmod 755 /run
 
-# Test only Python (skip SSH test to avoid issues)
+# Test only Python (works reliably across all versions)
 RUN python3 --version
 
 VOLUME ["/sys/fs/cgroup"]

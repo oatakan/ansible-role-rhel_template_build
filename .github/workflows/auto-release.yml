@@ -95,6 +95,7 @@ jobs:
       new_version: ${{ steps.analyze.outputs.new_version }}
       analysis_reasoning: ${{ steps.analyze.outputs.analysis_reasoning }}
       changelog_entry: ${{ steps.analyze.outputs.changelog_entry }}
+      release_notes: ${{ steps.analyze.outputs.release_notes }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -116,49 +117,12 @@ jobs:
         run: |
           echo "🤖 Running AI release analysis..."
           
-          # Run the AI analysis and capture output
-          python .github/scripts/ai_release_analyzer.py > ai_analysis_output.log 2>&1
+          # Run the AI analysis - it sets all outputs directly
+          python .github/scripts/ai_release_analyzer.py
           
-          # Display the output for debugging
-          echo "📋 AI Analysis Output:"
-          cat ai_analysis_output.log
-          
-          # Parse the output from the log
-          if grep -q "📋 Analysis:" ai_analysis_output.log; then
-            # Extract version bump from output
-            VERSION_BUMP=$(grep "📋 Analysis:" ai_analysis_output.log | sed 's/.*Analysis: \([a-z]*\) bump.*/\1/')
-            NEW_VERSION=$(grep "📋 Analysis:" ai_analysis_output.log | sed 's/.*→ \(v[0-9.]*\).*/\1/')
-            REASONING=$(grep "💭 Reasoning:" ai_analysis_output.log | sed 's/💭 Reasoning: //')
-            
-            echo "📊 Parsed Results:"
-            echo "- Version Bump: $VERSION_BUMP"
-            echo "- New Version: $NEW_VERSION" 
-            echo "- Reasoning: $REASONING"
-            
-            # Set outputs
-            echo "should_release=true" >> $GITHUB_OUTPUT
-            echo "version_bump=$VERSION_BUMP" >> $GITHUB_OUTPUT
-            echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-            echo "analysis_reasoning=$REASONING" >> $GITHUB_OUTPUT
-            echo "changelog_entry=- $REASONING" >> $GITHUB_OUTPUT
-            
-            # Create analysis file for other jobs
-            cat > /tmp/release_analysis.json << EOF
-          {
-            "should_release": true,
-            "version_bump": "$VERSION_BUMP",
-            "new_version": "$NEW_VERSION",
-            "reasoning": "$REASONING"
-          }
-          EOF
-            
-            echo "✅ Analysis completed successfully"
-          else
-            echo "❌ Could not parse AI analysis output"
-            echo "should_release=false" >> $GITHUB_OUTPUT
-            echo "analysis_reasoning=Failed to parse AI analysis output" >> $GITHUB_OUTPUT
-            exit 1
-          fi
+          echo "✅ AI analysis completed"
+          echo "📊 Outputs set by AI script:"
+          echo "- Check the AI script logs above for analysis details"
 
       - name: Post analysis summary
         if: steps.analyze.outputs.should_release == 'true'
@@ -168,8 +132,8 @@ jobs:
           echo "**Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
           echo "**Strategy:** Branch protection (CI pre-validated on PRs)" >> $GITHUB_STEP_SUMMARY
           echo "**Loop Prevention:** Passed (no bot commits or docs-only changes)" >> $GITHUB_STEP_SUMMARY
-          echo "**Recommended Version Bump:** ${{ steps.analyze.outputs.version_bump }}" >> $GITHUB_STEP_SUMMARY
-          echo "**New Version:** ${{ steps.analyze.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Recommended Version:** ${{ steps.analyze.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Version Bump Type:** ${{ steps.analyze.outputs.version_bump }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Reasoning:**" >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.analyze.outputs.analysis_reasoning }}" >> $GITHUB_STEP_SUMMARY
@@ -186,25 +150,29 @@ jobs:
 
       - name: Debug job inputs
         run: |
-          echo "🔍 Debugging job inputs from analyze-changes..."
+          echo "🔍 Debugging outputs from AI analysis..."
           echo ""
-          echo "Job outputs received:"
+          echo "All outputs set directly by ai_release_analyzer.py:"
           echo "- should_release: '${{ needs.analyze-changes.outputs.should_release }}'"
           echo "- version_bump: '${{ needs.analyze-changes.outputs.version_bump }}'"
           echo "- new_version: '${{ needs.analyze-changes.outputs.new_version }}'"
           echo "- analysis_reasoning: '${{ needs.analyze-changes.outputs.analysis_reasoning }}'"
           echo "- changelog_entry: '${{ needs.analyze-changes.outputs.changelog_entry }}'"
+          echo "- release_notes: present (multiline)"
           echo ""
           
-          # Check if any are empty
+          # Validate critical outputs
           if [ -z "${{ needs.analyze-changes.outputs.new_version }}" ]; then
             echo "❌ CRITICAL: new_version is empty!"
+            echo "🔧 FIX: AI script needs to set new_version output"
+            exit 1
           else
             echo "✅ new_version received: ${{ needs.analyze-changes.outputs.new_version }}"
           fi
           
           if [ -z "${{ needs.analyze-changes.outputs.version_bump }}" ]; then
             echo "❌ CRITICAL: version_bump is empty!"
+            exit 1
           else
             echo "✅ version_bump received: ${{ needs.analyze-changes.outputs.version_bump }}"
           fi
@@ -212,27 +180,24 @@ jobs:
       - name: Set version from AI analysis
         id: version
         run: |
-          # Use AI analysis results directly
+          # Use AI analysis results directly - no calculation needed
           AI_NEW_VERSION="${{ needs.analyze-changes.outputs.new_version }}"
           AI_VERSION_BUMP="${{ needs.analyze-changes.outputs.version_bump }}"
           
-          echo "🤖 AI Analysis Results:"
+          echo "🤖 Using AI-determined version directly:"
           echo "- New Version: $AI_NEW_VERSION"
           echo "- Version Bump: $AI_VERSION_BUMP"
           
-          # Validate we have the required outputs
-          if [ -z "$AI_NEW_VERSION" ] || [ "$AI_NEW_VERSION" = "null" ]; then
-            echo "❌ ERROR: No new version from AI analysis"
-            echo "Available outputs:"
-            echo "- should_release: ${{ needs.analyze-changes.outputs.should_release }}"
-            echo "- version_bump: ${{ needs.analyze-changes.outputs.version_bump }}"
-            echo "- new_version: ${{ needs.analyze-changes.outputs.new_version }}"
+          # Simple validation
+          if [[ ! "$AI_NEW_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ ERROR: Invalid version format: $AI_NEW_VERSION"
+            echo "Expected format: v1.2.3"
             exit 1
           fi
           
-          # Use AI-determined version directly
-          NEW_VERSION=${AI_NEW_VERSION#v}  # Remove 'v' prefix for version
-          NEW_TAG="$AI_NEW_VERSION"       # Keep 'v' prefix for tag
+          # Set outputs for use in subsequent steps
+          NEW_VERSION=${AI_NEW_VERSION#v}  # Remove 'v' prefix for display
+          NEW_TAG="$AI_NEW_VERSION"       # Keep 'v' prefix for git tag
           
           echo "🏷️ Final version: $NEW_VERSION"
           echo "🏷️ Final tag: $NEW_TAG"
@@ -243,7 +208,8 @@ jobs:
             echo "🔍 Existing tags:"
             git tag -l | sort -V | tail -5
             echo ""
-            echo "🤖 This suggests the AI analysis or version calculation has an issue."
+            echo "🤖 AI suggested: $AI_NEW_VERSION"
+            echo "This suggests the AI analysis has an issue."
             exit 1
           fi
           
@@ -300,18 +266,15 @@ jobs:
 
       - name: Create GitHub Release
         env:
-          RELEASE_NOTES: |
-            ## Changes in ${{ steps.version.outputs.NEW_TAG }}
-      
-            ${{ needs.analyze-changes.outputs.changelog_entry }}
-      
-            **Release Type:** ${{ needs.analyze-changes.outputs.version_bump }}
-            **Analysis:** ${{ needs.analyze-changes.outputs.analysis_reasoning }}
-      
-            ---
-            *This release was automatically generated based on AI analysis of the changes.*
+          GH_TOKEN: ${{ github.token }}
         run: |
-          echo "$RELEASE_NOTES" | gh release create ${{ steps.version.outputs.NEW_TAG }} --title "Release ${{ steps.version.outputs.NEW_TAG }}" --notes-file -
+          echo "🚀 Creating GitHub release with AI-generated notes..."
+          echo '${{ needs.analyze-changes.outputs.release_notes }}' | \
+          gh release create ${{ steps.version.outputs.NEW_TAG }} \
+            --title "Release ${{ steps.version.outputs.NEW_TAG }}" \
+            --notes-file -
+          
+          echo "✅ Release created successfully"
 
   deploy-galaxy:
     needs: [check-release-needed, analyze-changes, create-release]

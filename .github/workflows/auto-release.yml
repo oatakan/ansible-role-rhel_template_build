@@ -299,24 +299,19 @@ jobs:
           echo "✅ Tag pushed to remote"
 
       - name: Create GitHub Release
-        uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.version.outputs.NEW_TAG }}
-          release_name: Release ${{ steps.version.outputs.NEW_TAG }}
-          body: |
+          RELEASE_NOTES: |
             ## Changes in ${{ steps.version.outputs.NEW_TAG }}
-
+      
             ${{ needs.analyze-changes.outputs.changelog_entry }}
-
+      
             **Release Type:** ${{ needs.analyze-changes.outputs.version_bump }}
             **Analysis:** ${{ needs.analyze-changes.outputs.analysis_reasoning }}
-
+      
             ---
             *This release was automatically generated based on AI analysis of the changes.*
-          draft: false
-          prerelease: false
+        run: |
+          echo "$RELEASE_NOTES" | gh release create ${{ steps.version.outputs.NEW_TAG }} --title "Release ${{ steps.version.outputs.NEW_TAG }}" --notes-file -
 
   deploy-galaxy:
     needs: [check-release-needed, analyze-changes, create-release]

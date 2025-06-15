@@ -1,10 +1,10 @@
 # oatakan.rhel_template_build
 
-[![Galaxy Version](https://img.shields.io/badge/galaxy-v1.1.0-blue.svg)](https://galaxy.ansible.com/oatakan/rhel_template_build)
-[![CI](https://github.com/oatakan/ansible-role-rhel_template_build/actions/workflows/ci.yml/badge.svg)](https://github.com/oatakan/ansible-role-rhel_template_build/actions/workflows/ci.yml)
-[![VM Tests](https://github.com/oatakan/ansible-role-rhel_template_build/actions/workflows/vm-test.yml/badge.svg)](https://github.com/oatakan/ansible-role-rhel_template_build/actions/workflows/vm-test.yml)
+[![Ansible Role Version](https://img.shields.io/github/v/tag/oatakan/ansible-role-rhel_template_build?label=version)](https://galaxy.ansible.com/oatakan/rhel_template_build)
+[![CI](https://github.com/oatakan/ansible-role-rhel_template_build/workflows/ci/badge.svg)](https://github.com/oatakan/ansible-role-rhel_template_build/actions/workflows/ci.yml)
+[![CI](https://github.com/oatakan/ansible-role-rhel_template_build/workflows/VM%20Integration%20Tests/badge.svg)](https://github.com/oatakan/ansible-role-rhel_template_build/actions/workflows/vm-test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Ansible Role](https://img.shields.io/ansible/role/d/oatakan/rhel_template_build)](https://galaxy.ansible.com/oatakan/rhel_template_build)
+[![Role Downloads](https://img.shields.io/ansible/role/d/oatakan/rhel_template_build?label=downloads&logo=ansible)](https://galaxy.ansible.com/oatakan/rhel_template_build)
 
 This role transforms a minimal **Red Hat Enterprise Linux (RHEL)** system into a golden image template that can be safely cloned. Designed primarily for RHEL environments, it installs common utilities, configures networking and SSH, enables cloud-init and guest agents, and cleans the system so cloned instances boot with fresh identities.
 

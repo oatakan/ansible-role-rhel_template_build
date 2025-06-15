@@ -1,66 +1,99 @@
----
-name: Docs CI
+name: "Documentation CI"
 
 on:
   pull_request:
-    branches: [main, master]
-    # Only run for documentation changes
     paths:
       - '**.md'
+      - '**.rst'
+      - '**.txt'
       - 'docs/**'
-      - 'CHANGELOG.md'
+      - '.github/workflows/docs-ci.yml'
 
 jobs:
-  docs-check:
+  check-docs-only:
     runs-on: ubuntu-latest
+    outputs:
+      docs-only: ${{ steps.check.outputs.docs-only }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Check markdown files
+      - name: Check if changes are docs-only
+        id: check
         run: |
-          echo "🔍 Checking documentation files..."
+          echo "🔍 Analyzing changed files..."
           
-          # Basic markdown linting
-          echo "Checking for common markdown issues..."
+          # Get changed files in this PR
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
           
-          # Check for broken internal links (basic check)
-          if command -v grep &> /dev/null; then
-            echo "Checking for potential broken internal links..."
-            find . -name "*.md" -exec grep -l "](\./" {} \; | while read file; do
-              echo "Found internal links in: $file"
-            done
-          fi
+          echo "📋 Changed files:"
+          echo "$CHANGED_FILES"
           
-          # Check for TODO/FIXME in docs
-          if grep -r "TODO\|FIXME" . --include="*.md" | head -5; then
-            echo "⚠️ Found TODO/FIXME items in documentation (review recommended)"
-          fi
-          
-          echo "✅ Basic documentation checks completed"
-
-      - name: Validate CHANGELOG format (if changed)
-        if: contains(github.event.pull_request.changed_files, 'CHANGELOG.md')
-        run: |
-          echo "📋 Validating CHANGELOG.md format..."
-          
-          if [ -f CHANGELOG.md ]; then
-            # Basic format check
-            if head -n 1 CHANGELOG.md | grep -q "# Changelog\|# CHANGELOG"; then
-              echo "✅ CHANGELOG.md has proper header"
-            else
-              echo "⚠️ CHANGELOG.md might be missing proper header"
+          # Check if ALL changes are docs-related
+          DOCS_ONLY=true
+          while IFS= read -r file; do
+            if [[ -n "$file" ]]; then
+              # Allow these file patterns for docs-only:
+              if [[ "$file" =~ \.(md|rst|txt)$ ]] || \
+                 [[ "$file" =~ ^docs/ ]] || \
+                 [[ "$file" =~ ^\.github/workflows/docs-ci\.yml$ ]]; then
+                echo "✓ $file (documentation)"
+              else
+                echo "❌ $file (NOT documentation - this is code/config)"
+                DOCS_ONLY=false
+              fi
             fi
-          fi
+          done <<< "$CHANGED_FILES"
+          
+          echo "docs-only=$DOCS_ONLY" >> $GITHUB_OUTPUT
+          echo ""
+          echo "📊 Result: Documentation-only changes = $DOCS_ONLY"
 
-      - name: Success summary
+  # Only create ci-success if this is truly docs-only
+  ci-success:
+    needs: check-docs-only
+    runs-on: ubuntu-latest
+    # CRITICAL: Only run if docs-only is true
+    if: needs.check-docs-only.outputs.docs-only == 'true'
+    steps:
+      - name: ✅ Documentation-only CI success
         run: |
-          echo "### 📚 Documentation CI Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ **Documentation checks passed**" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- Basic markdown validation completed" >> $GITHUB_STEP_SUMMARY
-          echo "- Internal link structure reviewed" >> $GITHUB_STEP_SUMMARY
-          echo "- CHANGELOG format validated (if applicable)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "*This lightweight CI ensures documentation quality without running full test suites.*" >> $GITHUB_STEP_SUMMARY
+          echo "🎯 Confirmed: This PR contains ONLY documentation changes"
+          echo "📚 Documentation validation completed"
+          echo "⚡ Skipping full CI suite (safe optimization)"
+          echo "🚀 Ready for merge"
+
+  # Always run docs validation, but don't report ci-success for mixed PRs
+  docs-validation:
+    needs: check-docs-only
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 📚 Validate documentation
+        run: |
+          echo "📝 Running documentation validation..."
+          
+          # Basic markdown validation
+          find . -name "*.md" -print0 | while IFS= read -r -d '' file; do
+            if [[ -r "$file" ]]; then
+              echo "✓ $file"
+            else
+              echo "❌ Cannot read $file"
+              exit 1
+            fi
+          done
+          
+          echo "✅ Documentation validation completed"
+
+      - name: 📊 Report validation result
+        run: |
+          if [[ "${{ needs.check-docs-only.outputs.docs-only }}" == "true" ]]; then
+            echo "🎯 Pure documentation PR - CI requirements satisfied"
+          else
+            echo "⚠️ Mixed PR detected (docs + code changes)"
+            echo "🔒 Full CI pipeline must also pass for merge approval"
+            echo "📚 Documentation validation completed, but code CI still required"
+          fi

@@ -254,6 +254,10 @@ jobs:
       # Don't commit changes to master - just create the tag and release
       - name: Create and push tag (using AI version)
         run: |
+          # Configure git user for tag creation
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
           NEW_TAG="${{ steps.version.outputs.NEW_TAG }}"
           NEW_VERSION="${{ steps.version.outputs.NEW_VERSION }}"
           

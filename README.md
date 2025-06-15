@@ -1,7 +1,7 @@
 # oatakan.rhel_template_build
 
 [![Ansible Role Version](https://img.shields.io/github/v/tag/oatakan/ansible-role-rhel_template_build?label=version)](https://galaxy.ansible.com/oatakan/rhel_template_build)
-[![CI](https://github.com/oatakan/ansible-role-rhel_template_build/workflows/ci/badge.svg)](https://github.com/oatakan/ansible-role-rhel_template_build/actions/workflows/ci.yml)
+[![CI](https://github.com/oatakan/ansible-role-rhel_template_build/workflows/CI/badge.svg)](https://github.com/oatakan/ansible-role-rhel_template_build/actions/workflows/ci.yml)
 [![CI](https://github.com/oatakan/ansible-role-rhel_template_build/workflows/VM%20Integration%20Tests/badge.svg)](https://github.com/oatakan/ansible-role-rhel_template_build/actions/workflows/vm-test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Role Downloads](https://img.shields.io/ansible/role/d/oatakan/rhel_template_build?label=downloads&logo=ansible)](https://galaxy.ansible.com/oatakan/rhel_template_build)

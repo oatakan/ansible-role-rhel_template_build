@@ -162,6 +162,14 @@
     - target_ovirt | bool
     - not is_container
 
+- name: ensure cloud-init drop-in dir exists for non-ovirt targets
+  ansible.builtin.file:
+    path: /etc/cloud/cloud.cfg.d
+    state: directory
+    mode: '0755'
+  when:
+    - not target_ovirt | bool
+
 - name: prioritize NetworkManager renderer with cloud-init
   ansible.builtin.copy:
     content: |
@@ -172,6 +180,7 @@
     mode: '0644'
   when:
     - ansible_distribution_major_version|int >= 10
+    - not is_container
 
 - name: grow partition
   ansible.builtin.include_tasks: grow_part.yml

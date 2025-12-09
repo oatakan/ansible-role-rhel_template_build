@@ -269,15 +269,22 @@ ansible-galaxy install oatakan.rhel_template_build,{version}
         except:
             new_version = '0.1.0'
 
-        print(f"📋 Analysis: {analysis['version_bump']} bump → v{new_version}")
+        new_version_tag = f'v{new_version}'
+
+        print(f"📋 Analysis: {analysis['version_bump']} bump → {new_version_tag}")
         print(f"💭 Reasoning: {analysis['reasoning']}")
 
-        release_notes = self.generate_release_notes(analysis, f'v{new_version}')
+        release_notes = self.generate_release_notes(analysis, new_version_tag)
 
         # Output for GitHub Actions
-        with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+        github_output = os.environ.get('GITHUB_OUTPUT')
+        if not github_output:
+            raise RuntimeError("GITHUB_OUTPUT environment variable is not set")
+
+        with open(github_output, 'a') as f:
             f.write(f"should_release={str(analysis['should_release']).lower()}\n")
             f.write(f"version_bump={analysis['version_bump']}\n")
+            f.write(f"new_version={new_version_tag}\n")
             f.write(f"analysis_reasoning={analysis['reasoning']}\n")
             f.write(f"changelog_entry<<EOF\n{analysis['changelog_entry']}\nEOF\n")
             f.write(f"release_notes<<EOF\n{release_notes}\nEOF\n")

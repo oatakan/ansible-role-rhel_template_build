@@ -268,12 +268,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          printf '%s
+' "${{ needs.analyze-changes.outputs.release_notes }}" > release_notes.md
           echo "🚀 Creating GitHub release with AI-generated notes..."
-          echo '${{ needs.analyze-changes.outputs.release_notes }}' | \
           gh release create ${{ steps.version.outputs.NEW_TAG }} \
             --title "Release ${{ steps.version.outputs.NEW_TAG }}" \
-            --notes-file -
-          
+            --notes-file release_notes.md
           echo "✅ Release created successfully"
 
   deploy-galaxy:

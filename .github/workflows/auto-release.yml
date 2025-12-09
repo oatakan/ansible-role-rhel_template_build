@@ -219,6 +219,8 @@ jobs:
 
       # Don't commit changes to master - just create the tag and release
       - name: Create and push tag (using AI version)
+        env:
+          AI_CHANGELOG: ${{ needs.analyze-changes.outputs.changelog_entry }}
         run: |
           # Configure git user for tag creation
           git config user.name "github-actions[bot]"
@@ -252,24 +254,15 @@ jobs:
           fi
           
           # Create the tag with release notes
-          git tag -a "$NEW_TAG" \
-            -m "Release $NEW_TAG
-
-          ${{ needs.analyze-changes.outputs.changelog_entry }}"
-          
-          echo "✅ Tag created successfully"
-          
-          # Push the tag
-          git push origin "$NEW_TAG"
-          
-          echo "✅ Tag pushed to remote"
+          printf 'Release %s\n\n%s\n' "$NEW_TAG" "$AI_CHANGELOG" > tag_message.txt
+          git tag -a "$NEW_TAG" -F tag_message.txt
+          rm -f tag_message.txt
 
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          printf '%s
-' "${{ needs.analyze-changes.outputs.release_notes }}" > release_notes.md
+          printf '%s\n' "${{ needs.analyze-changes.outputs.release_notes }}" > release_notes.md
           echo "🚀 Creating GitHub release with AI-generated notes..."
           gh release create ${{ steps.version.outputs.NEW_TAG }} \
             --title "Release ${{ steps.version.outputs.NEW_TAG }}" \

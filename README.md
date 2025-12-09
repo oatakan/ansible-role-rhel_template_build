@@ -10,6 +10,8 @@ This role transforms a minimal **Red Hat Enterprise Linux (RHEL)** system into a
 
 You can use this role with the Packer Ansible provisioner or combine it with roles like `oatakan.rhel_vcenter_template` and `oatakan.rhel_ovirt_template` when provisioning directly against your virtualization platform.
 
+> ⚠️ **RHEL 7 is deprecated**: it is no longer part of the automated test matrix and will be removed in a future release. Use RHEL 8+ whenever possible.
+
 ## Supported Systems
 
 This role is designed and tested for **Red Hat Enterprise Linux**:
@@ -25,6 +27,8 @@ Also tested for compatibility with RHEL-based distributions:
 - ✅ **AlmaLinux** 8, 9, 10
 
 *Testing is performed using both containerized environments and virtual machine scenarios.*
+
+RHEL 7 might still function for some scenarios, but it is untested and no longer supported for new deployments.
 
 ## Requirements
 

@@ -164,9 +164,9 @@
 
 - name: prioritize NetworkManager renderer with cloud-init
   ansible.builtin.copy:
-    content: |                                                                                                                                                           
-      #cloud-config                                                                                                                                                      
-      network:                                                                                                                                                           
+    content: |
+      #cloud-config
+      network:
         renderers: ['NetworkManager', 'sysconfig']
     dest: /etc/cloud/cloud.cfg.d/92-network-renderers.cfg
     mode: '0644'

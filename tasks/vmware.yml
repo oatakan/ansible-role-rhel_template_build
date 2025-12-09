@@ -24,15 +24,15 @@
 
 - name: disable clout-init network configuration
   ansible.builtin.copy:
-    content: |                                                                                                                                                           
-      #cloud-config                                                                                                                                                      
+    content: |
+      #cloud-config
       network: {config: disabled}
     dest: /etc/cloud/cloud.cfg.d/99-disable-cloudinit-net.cfg
     mode: '0644'
 
 - name: Disable cloud-init VMware customization (use native GOSC)
   ansible.builtin.copy:
-    content: |                                                                                                                                                           
+    content: |
       disable_vmware_customization: true
     dest: /etc/cloud/cloud.cfg.d/10-disable-vmware-customization.cfg
     mode: '0644'

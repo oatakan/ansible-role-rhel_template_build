@@ -257,6 +257,7 @@ jobs:
           printf 'Release %s\n\n%s\n' "$NEW_TAG" "$AI_CHANGELOG" > tag_message.txt
           git tag -a "$NEW_TAG" -F tag_message.txt
           rm -f tag_message.txt
+          git push origin "$NEW_TAG"
 
       - name: Create GitHub Release
         env:

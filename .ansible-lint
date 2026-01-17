@@ -48,9 +48,6 @@ kinds:
 # Ansible-lint completely ignores rules or tags listed below
 offline: true
 
-# Parse the cli like ansible-playbook
-parseable: true
-
 # Define required Ansible's variables to satisfy syntax check
 extra_vars:
   ansible_os_family: RedHat

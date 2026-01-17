@@ -1,0 +1,22 @@
+---
+- name: Verify (Tart)
+  hosts: tart
+  gather_facts: true
+  tasks:
+    - name: Check that we can connect
+      ansible.builtin.ping:
+
+    - name: Collect package facts
+      ansible.builtin.package_facts:
+
+    - name: Verify a Tart guest agent package is installed
+      ansible.builtin.assert:
+        that:
+          - "'qemu-guest-agent' in ansible_facts.packages or 'tart-guest-agent' in ansible_facts.packages"
+        fail_msg: "Neither qemu-guest-agent nor tart-guest-agent appears installed"
+
+    - name: Debug which guest agent is installed
+      ansible.builtin.debug:
+        msg: |
+          qemu-guest-agent installed: {{ 'qemu-guest-agent' in ansible_facts.packages }}
+          tart-guest-agent installed: {{ 'tart-guest-agent' in ansible_facts.packages }}

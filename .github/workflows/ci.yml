@@ -15,7 +15,7 @@ on:
   # NO push trigger - this prevents CI from running after merge!
 
 env:
-  ANSIBLE_ROLES_PATH: ${{ github.workspace }}/tests/roles
+  ANSIBLE_ROLES_PATH: $RUNNER_TEMP/roles
   ANSIBLE_RETRY_FILES_ENABLED: false
   ANSIBLE_PIPELINING: true
 
@@ -43,8 +43,8 @@ jobs:
 
       - name: Set up role locally
         run: |
-          mkdir -p tests/roles
-          ln -s ${{ github.workspace }} tests/roles/oatakan.rhel_template_build
+          mkdir -p "$RUNNER_TEMP/roles"
+          ln -s "${{ github.workspace }}" "$RUNNER_TEMP/roles/oatakan.rhel_template_build"
 
       - name: Run yamllint
         run: yamllint .
@@ -72,8 +72,8 @@ jobs:
 
       - name: Set up role locally
         run: |
-          mkdir -p tests/roles
-          ln -s ${{ github.workspace }} tests/roles/oatakan.rhel_template_build
+          mkdir -p "$RUNNER_TEMP/roles"
+          ln -s "${{ github.workspace }}" "$RUNNER_TEMP/roles/oatakan.rhel_template_build"
 
       - name: Install required collections
         run: |
@@ -135,8 +135,8 @@ jobs:
 
       - name: Set up role locally
         run: |
-          mkdir -p tests/roles
-          ln -s ${{ github.workspace }} tests/roles/oatakan.rhel_template_build
+          mkdir -p "$RUNNER_TEMP/roles"
+          ln -s "${{ github.workspace }}" "$RUNNER_TEMP/roles/oatakan.rhel_template_build"
 
       - name: Install collections
         run: |

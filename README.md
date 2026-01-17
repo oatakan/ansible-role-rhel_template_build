@@ -45,9 +45,27 @@ The most common variables are listed below. See `defaults/main.yml` for the full
 |----------|---------|-------------|
 | `target_vagrant` | `false` | When set to `true`, the Vagrant public key is installed for the local user. |
 | `target_ovirt` | `false` | Enables cloud-init setup and installs the oVirt/QEMU guest agent. |
+| `target_tart` | `false` | Installs and enables the guest agent suitable for Tart-built images (defaults to `qemu-guest-agent`). |
 | `local_account_username` | `ansible` | User name that owns downloaded ISOs and receives the Vagrant key. |
 | `permit_root_login_with_password` | `true` | Allows password based root logins in cloud-init configuration. |
 | `parallels_tools_role` | `oatakan.linux_parallels_tools` | Role used to install Parallels guest tools when Parallels is detected. |
+
+### Tart guest agent options
+
+When `target_tart: true`, the role can install the agent in one of the following ways:
+
+- `tart_guest_agent_install_method: repo` (default) installs `qemu-guest-agent` from standard repos.
+- `tart_guest_agent_install_method: github` installs CirrusLabs `tart-guest-agent` from GitHub releases.
+- `tart_guest_agent_install_method: auto` tries GitHub first, then falls back to repo.
+
+Relevant variables:
+
+- `tart_guest_agent_install_method` (`repo|github|auto`)
+- `tart_guest_agent_package_name` / `tart_guest_agent_service_name` (repo path)
+- `tart_guest_agent_github_repo` (default `cirruslabs/tart-guest-agent`)
+- `tart_guest_agent_github_release` (default `latest`)
+- `tart_guest_agent_base_url_override` (skip GitHub API)
+- `tart_guest_agent_github_service_name` (default `tart-guest-agent`)
 
 ## Dependencies
 
@@ -64,6 +82,7 @@ If Parallels guest tools are required, ensure the [`oatakan.linux_parallels_tool
       vars:
         target_vagrant: true
         target_ovirt: false
+        target_tart: false
 ```
 
 ## Testing
@@ -94,7 +113,9 @@ ANSIBLE_ROLES_PATH=$(pwd)/tests/roles molecule test
 The test suite uses an optimized `ansible.cfg` configuration with `remote_tmp` set to `/tmp` for container compatibility. Molecule automatically handles environment configuration.
 
 ### Testing Coverage
+
 The automated testing validates functionality across:
+
 - **RHEL** (using Red Hat Universal Base Images)
 - **Rocky Linux** (RHEL compatibility)  
 - **AlmaLinux** (RHEL compatibility)

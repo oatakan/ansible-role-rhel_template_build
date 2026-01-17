@@ -6,12 +6,21 @@
     - name: Check that we can connect to the instance
       ansible.builtin.ping:
 
+    - name: Verify required packages are installed
+      ansible.builtin.package_facts:
+
+    - name: Verify Tart guest agent package is installed (when enabled)
+      ansible.builtin.assert:
+        that:
+          - "'qemu-guest-agent' in ansible_facts.packages"
+        fail_msg: "Expected qemu-guest-agent to be installed in container test when target_tart is enabled"
+      when:
+        - ansible_os_family == 'RedHat'
+        - (target_tart | default(false)) | bool
+
     - name: Check if container detection is working
       ansible.builtin.debug:
         var: ansible_virtualization_type
-
-    - name: Verify required packages are installed
-      ansible.builtin.package_facts:
 
     - name: Check python3 is available
       ansible.builtin.command: python3 --version

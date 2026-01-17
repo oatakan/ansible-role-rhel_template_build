@@ -29,6 +29,7 @@ exclude_paths:
   - tests/roles/
   - molecule/default/.molecule/
   - molecule/vagrant/.molecule/
+  - molecule/tart/state.yml
 
 # Mock modules or roles in external dependencies that might be missing
 # mock_modules: []
@@ -47,9 +48,6 @@ kinds:
 
 # Ansible-lint completely ignores rules or tags listed below
 offline: true
-
-# Parse the cli like ansible-playbook
-parseable: true
 
 # Define required Ansible's variables to satisfy syntax check
 extra_vars:

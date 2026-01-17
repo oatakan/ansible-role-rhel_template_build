@@ -2,8 +2,32 @@
 
 target_vagrant: false
 target_ovirt: false
+# Install guest agent suitable for Tart-built images
+target_tart: false
 
 local_account_username: ansible
+
+# Tart guest agent installation mode:
+# - repo: install from OS repositories (default: qemu-guest-agent)
+# - github: download CirrusLabs tart-guest-agent release artifact
+# - auto: try github then fall back to repo
+#
+# Note: github mode requires outbound HTTPS access.
+tart_guest_agent_install_method: repo
+
+# Repo-based defaults (works on RHEL-family)
+tart_guest_agent_package_name: qemu-guest-agent
+tart_guest_agent_service_name: qemu-guest-agent
+
+# GitHub-based defaults (CirrusLabs tart-guest-agent)
+tart_guest_agent_github_repo: cirruslabs/tart-guest-agent
+# 'latest' or a tag like 'vX.Y.Z'
+tart_guest_agent_github_release: latest
+# If your environment blocks GitHub API, you can set this to a precomputed base URL
+# (without .rpm suffix), e.g. https://github.com/.../download/vX.Y.Z/tart-guest-agent_...
+tart_guest_agent_base_url_override: ''
+# If you're using github method, the service name is expected to match the binary package.
+tart_guest_agent_github_service_name: tart-guest-agent
 
 ovirt_guest_agent_service_name: ovirt-guest-agent
 qemu_guest_agent_service_name: qemu-guest-agent

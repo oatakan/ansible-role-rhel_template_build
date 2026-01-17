@@ -1,0 +1,20 @@
+---
+- name: Converge (Tart)
+  hosts: tart
+  become: true
+  gather_facts: true
+  vars:
+    target_vagrant: false
+    target_ovirt: false
+    target_tart: true
+    # For Tart we typically want CirrusLabs guest agent; switch to 'repo' if you prefer qemu-guest-agent.
+    tart_guest_agent_install_method: "{{ lookup('env', 'MOLECULE_TART_AGENT_METHOD') | default('auto', true) }}"
+
+  pre_tasks:
+    - name: Update package cache
+      ansible.builtin.package:
+        update_cache: true
+      when: ansible_os_family == 'RedHat'
+
+  roles:
+    - role: oatakan.rhel_template_build

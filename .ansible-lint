@@ -29,6 +29,7 @@ exclude_paths:
   - tests/roles/
   - molecule/default/.molecule/
   - molecule/vagrant/.molecule/
+  - molecule/tart/state.yml
 
 # Mock modules or roles in external dependencies that might be missing
 # mock_modules: []

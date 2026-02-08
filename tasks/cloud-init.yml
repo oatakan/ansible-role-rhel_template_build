@@ -25,6 +25,11 @@
     - cloud-final
   when: ansible_distribution_major_version|int >= 9
 
+- name: ensure cloud-init.disabled file does not exist
+  ansible.builtin.file:
+    path: /etc/cloud/cloud-init.disabled
+    state: absent
+
 - name: cloud-init config
   block:
     - name: check for cloud.cfg file

@@ -5,12 +5,10 @@ This guide explains how to configure and customize the AI-powered automation sys
 ## 🎯 Recommended Models for Price/Performance
 
 ### OpenAI Models
-- **GPT-4o mini** - Best choice for most tasks (~$0.15 per 1M input tokens)
+- **GPT-5 mini** - Best choice for most tasks (~$0.25 per 1M input tokens)
   - Excellent code analysis and understanding
   - Good at following structured prompts
-  - 15x cheaper than GPT-4
-- **GPT-4o** - For complex reasoning tasks (~$2.50 per 1M input tokens)
-  - Use only when mini isn't sufficient
+  - Strong default for automation workloads
 
 ### Anthropic Models
 - **Claude 3.5 Haiku** - Fastest and cheapest (~$0.25 per 1M input tokens)
@@ -47,20 +45,20 @@ provider_priority:
 providers:
   openai:
     models:
-      simple: "gpt-4o-mini"     # Documentation, simple analysis
-      standard: "gpt-4o-mini"   # PR analysis, code review
-      complex: "gpt-4o"         # Complex reasoning tasks
+      simple: "gpt-5-mini"     # Documentation, simple analysis
+      standard: "gpt-5-mini"   # PR analysis, code review
+      complex: "gpt-5-mini"    # Keep costs predictable by default
 ```
 
 ### Task-Specific Configuration
 ```yaml
 task_models:
   release_analysis:
-    complexity: standard    # Uses gpt-4o-mini
+    complexity: standard    # Uses gpt-5-mini
   pr_analysis:
-    complexity: standard    # Uses gpt-4o-mini
+    complexity: standard    # Uses gpt-5-mini
   code_review:
-    complexity: standard    # Uses gpt-4o-mini
+    complexity: standard    # Uses gpt-5-mini
 ```
 
 ## 📝 Prompt Templates
@@ -98,8 +96,7 @@ Variables in prompts use `{variable_name}` syntax and are replaced when the temp
 
 | Provider | Model | Input Cost | Output Cost | Best For |
 |----------|-------|------------|-------------|----------|
-| OpenAI | gpt-4o-mini | $0.15 | $0.60 | Most tasks ⭐ |
-| OpenAI | gpt-4o | $2.50 | $10.00 | Complex reasoning |
+| OpenAI | gpt-5-mini | $0.25 | $2.00 | Most tasks ⭐ |
 | Anthropic | Claude 3.5 Haiku | $0.25 | $1.25 | Simple tasks ⭐ |
 | Anthropic | Claude 3.5 Sonnet | $3.00 | $15.00 | Complex analysis |
 
@@ -142,11 +139,11 @@ Edit `ai_config.yml`:
 ```yaml
 providers:
   openai:
-    default_model: "gpt-4o-mini"  # Change to gpt-4o for better quality
+    default_model: "gpt-5-mini"  # Change to a larger GPT-5.x model for better quality
     models:
-      simple: "gpt-4o-mini"
-      standard: "gpt-4o"          # Upgrade standard tasks
-      complex: "gpt-4o"
+      simple: "gpt-5-mini"
+      standard: "gpt-5-mini"
+      complex: "gpt-5-mini"
 ```
 
 ### Adding New Tasks
@@ -166,7 +163,7 @@ task_models:
 Customize per model:
 ```yaml
 parameters:
-  "gpt-4o-mini":
+  "gpt-5-mini":
     max_tokens: 1500
     temperature: 0.2    # Lower for more consistent output
     timeout: 30

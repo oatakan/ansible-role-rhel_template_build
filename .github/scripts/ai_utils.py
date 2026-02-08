@@ -66,7 +66,7 @@ class AIClient:
             return {
                 'provider_priority': ['openai', 'anthropic'],
                 'providers': {
-                    'openai': {'default_model': 'gpt-4o-mini'},
+                    'openai': {'default_model': 'gpt-5-mini'},
                     'anthropic': {'default_model': 'claude-3-5-haiku-20241022'}
                 },
                 'task_models': {},

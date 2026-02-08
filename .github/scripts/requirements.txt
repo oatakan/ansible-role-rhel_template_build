@@ -1,7 +1,7 @@
 # Requirements for GitHub AI automation scripts
 
 # AI Providers (choose the best price/performance models)
-openai>=1.12.0          # GPT-4o mini recommended for cost efficiency
+openai>=1.12.0          # gpt-5-mini recommended for cost efficiency
 anthropic>=0.18.0       # Claude 3.5 Haiku for fast, cheap tasks
 
 # GitHub integration

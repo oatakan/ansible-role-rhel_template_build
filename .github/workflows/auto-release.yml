@@ -7,6 +7,15 @@ on:
     branches: [main, master]
     # Ignore pushes that only affect documentation/release files
     paths-ignore:
+      - '.github/**'
+      - 'molecule/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - '.ansible-lint'
+      - '.yamllint'
+      - 'pyproject.toml'
+      - 'requirements*.txt'
+      - 'test-locally.sh'
       - 'CHANGELOG.md'
       - 'docs/**'
       - '*.md'
@@ -69,13 +78,15 @@ jobs:
           CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
           echo "Changed files: $CHANGED_FILES"
           
-          # Count non-documentation changes
-          NON_DOC_CHANGES=$(echo "$CHANGED_FILES" | grep -v -E '\.(md|txt)$|^docs/|^CHANGELOG|^\.github/workflows/post-release' | wc -l)
+          # Count changes that should trigger a Galaxy release.
+          # Note: We intentionally ignore automation/dev-only paths (e.g., .github/, Molecule) so they don't
+          # cause tags/imports.
+          NON_DOC_CHANGES=$(echo "$CHANGED_FILES" | grep -v -E '\.(md|rst|txt)$|^docs/|^CHANGELOG\.md$|^\.github/|^molecule/|^tests/|^scripts/|^\.ansible-lint$|^\.yamllint$|^pyproject\.toml$|^requirements.*\.txt$|^test-locally\.sh$' | wc -l)
           
           if [[ $NON_DOC_CHANGES -eq 0 ]] && [[ -n "$CHANGED_FILES" ]]; then
-            echo "⚠️ Skipping release - only documentation files changed"
+            echo "⚠️ Skipping release - only non-release-affecting files changed"
             echo "should_skip=true" >> $GITHUB_OUTPUT
-            echo "skip_reason=docs_only" >> $GITHUB_OUTPUT
+            echo "skip_reason=non_release_only" >> $GITHUB_OUTPUT
             exit 0
           fi
           

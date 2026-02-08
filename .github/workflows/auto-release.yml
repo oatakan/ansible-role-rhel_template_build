@@ -142,6 +142,9 @@ jobs:
     needs: [check-release-needed, analyze-changes]
     if: needs.check-release-needed.outputs.should_skip == 'false' && (needs.analyze-changes.outputs.should_release == 'true' || github.event.inputs.force_release == 'true')
     runs-on: ubuntu-latest
+    outputs:
+      tag_name: ${{ steps.version.outputs.NEW_TAG }}
+      version: ${{ steps.version.outputs.NEW_VERSION }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -262,8 +265,19 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_NOTES: ${{ needs.analyze-changes.outputs.release_notes }}
         run: |
-          printf '%s\n' "${{ needs.analyze-changes.outputs.release_notes }}" > release_notes.md
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          notes = os.environ.get('RELEASE_NOTES', '')
+          # Ensure a trailing newline for markdown rendering consistency.
+          if notes and not notes.endswith('\n'):
+            notes += '\n'
+
+          Path('release_notes.md').write_text(notes, encoding='utf-8')
+          PY
           echo "🚀 Creating GitHub release with AI-generated notes..."
           gh release create ${{ steps.version.outputs.NEW_TAG }} \
             --title "Release ${{ steps.version.outputs.NEW_TAG }}" \

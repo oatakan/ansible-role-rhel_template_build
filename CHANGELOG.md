@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Hostname reset issues in containerized environments
 - Package installation failures in restricted environments
+- Hardened the PR enrichment workflow against command injection from issue comments
 
 ## [v1.1.0] - 2025-06-14
 

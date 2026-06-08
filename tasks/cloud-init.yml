@@ -30,6 +30,14 @@
     path: /etc/cloud/cloud-init.disabled
     state: absent
 
+- name: ensure cloud-init network disable drop-ins do not exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+    - /etc/cloud/cloud.cfg.d/99-disable-cloudinit-net.cfg
+
 - name: cloud-init config
   block:
     - name: check for cloud.cfg file

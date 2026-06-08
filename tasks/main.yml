@@ -181,8 +181,9 @@
   ansible.builtin.copy:
     content: |
       #cloud-config
-      network:
-        renderers: ['NetworkManager', 'sysconfig']
+      system_info:
+        network:
+          renderers: ['network-manager', 'sysconfig']
     dest: /etc/cloud/cloud.cfg.d/92-network-renderers.cfg
     mode: '0644'
   when:

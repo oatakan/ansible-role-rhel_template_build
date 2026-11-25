@@ -1,0 +1,95 @@
+---
+- name: Validate the EL8 package request
+  ansible.builtin.assert:
+    that:
+      - ansible_os_family == 'RedHat'
+      - ansible_distribution_major_version | int == 8
+      - el8_package_state in ['present', 'absent']
+      - el8_package_names is sequence
+      - el8_package_names is not string
+      - el8_package_names | length > 0
+      - el8_package_names | select('match', '^[A-Za-z0-9][A-Za-z0-9_.+-]*$') | list | length == el8_package_names | length
+
+- name: Read installed package state
+  ansible.builtin.command:
+    argv: >-
+      {{
+        ['/usr/bin/rpm', '-q']
+        + (['--whatprovides'] if el8_package_state == 'present' else [])
+        + ['--', el8_package_name]
+      }}
+  environment:
+    LC_ALL: C
+  check_mode: false
+  changed_when: false
+  failed_when: >-
+    el8_package_query.rc != 0 and
+    (
+      el8_package_query.rc != 1 or el8_package_query.stderr != '' or
+      el8_package_query.stdout != (
+        ('no package provides ' ~ el8_package_name)
+        if el8_package_state == 'present'
+        else ('package ' ~ el8_package_name ~ ' is not installed')
+      )
+    )
+  register: el8_package_query
+  loop: "{{ el8_package_names | unique }}"
+  loop_control:
+    loop_var: el8_package_name
+
+- name: Determine which packages need a change
+  ansible.builtin.set_fact:
+    el8_package_pending: >-
+      {{
+        el8_package_query.results
+        | selectattr('rc', 'equalto', 1 if el8_package_state == 'present' else 0)
+        | map(attribute='el8_package_name') | list
+      }}
+
+- name: Apply the pending native package transaction
+  ansible.builtin.command:
+    argv: >-
+      {{
+        ['/usr/bin/dnf', '--assumeyes']
+        + (['install'] if el8_package_state == 'present'
+           else ['--disablerepo=*', '--setopt=clean_requirements_on_remove=False', 'remove'])
+        + ['--'] + el8_package_pending
+      }}
+  environment:
+    LC_ALL: C
+  when:
+    - not ansible_check_mode
+    - el8_package_pending | length > 0
+
+- name: Verify the native package transaction
+  ansible.builtin.command:
+    argv: >-
+      {{
+        ['/usr/bin/rpm', '-q']
+        + (['--whatprovides'] if el8_package_state == 'present' else [])
+        + ['--', el8_package_name]
+      }}
+  environment:
+    LC_ALL: C
+  changed_when: false
+  failed_when: >-
+    (
+      el8_package_state == 'present' and el8_package_readback.rc != 0
+    ) or (
+      el8_package_state == 'absent' and
+      (
+        el8_package_readback.rc != 1 or el8_package_readback.stderr != '' or
+        el8_package_readback.stdout != ('package ' ~ el8_package_name ~ ' is not installed')
+      )
+    )
+  register: el8_package_readback
+  when: not ansible_check_mode
+  loop: "{{ el8_package_pending }}"
+  loop_control:
+    loop_var: el8_package_name
+
+- name: Report the native package result
+  ansible.builtin.set_fact:
+    el8_package_result:
+      changed: "{{ el8_package_pending | length > 0 }}"
+      failed: false

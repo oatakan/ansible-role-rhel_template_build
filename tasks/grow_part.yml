@@ -7,6 +7,14 @@
 - name: ensure growpart packages are installed
   ansible.builtin.package:
     name: "{{ growpart_packages }}"
+  when: not (use_native_el8_package_tools | bool)
+
+- name: Install grow_part.yml packages with native EL8 tools
+  ansible.builtin.include_tasks: native_el8_packages.yml
+  vars:
+    el8_package_names: "{{ growpart_packages }}"
+    el8_package_state: present
+  when: use_native_el8_package_tools | bool
 
 - name: create growpart cloud-init script to grow partition on boot
   ansible.builtin.template:

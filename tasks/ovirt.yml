@@ -27,9 +27,26 @@
 - name: ensure qemu guest agent package is installed
   ansible.builtin.package:
     name: "{{ qemu_guest_agent_package_name }}"
-  when: ansible_distribution_major_version|int >= 8
+  when:
+    - ansible_distribution_major_version|int >= 8
+    - not (use_native_el8_package_tools | bool)
   register: qemu_package_installation
   ignore_errors: true
+
+- name: Install qemu guest agent with native EL8 tools
+  block:
+    - ansible.builtin.include_tasks: native_el8_packages.yml
+      vars:
+        el8_package_names: ["{{ qemu_guest_agent_package_name }}"]
+        el8_package_state: present
+    - ansible.builtin.set_fact:
+        qemu_package_installation: "{{ el8_package_result }}"
+  rescue:
+    - ansible.builtin.set_fact:
+        qemu_package_installation:
+          failed: true
+          changed: false
+  when: use_native_el8_package_tools | bool
 
 - name: enable ovirt guest agent
   block:

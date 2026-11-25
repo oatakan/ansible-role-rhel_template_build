@@ -44,3 +44,6 @@ the_root_vgname: vg00
 the_root_lvname: root
 
 permit_root_login_with_password: true
+
+# Explicitly enabled only by the reviewed KubeVirt EL8 build recipe.
+use_native_el8_package_tools: false

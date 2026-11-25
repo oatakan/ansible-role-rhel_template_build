@@ -13,6 +13,14 @@
 - name: ensure cloud-init packages are installed
   ansible.builtin.package:
     name: "{{ cloud_init_packages }}"
+  when: not (use_native_el8_package_tools | bool)
+
+- name: Install cloud-init.yml packages with native EL8 tools
+  ansible.builtin.include_tasks: native_el8_packages.yml
+  vars:
+    el8_package_names: "{{ cloud_init_packages }}"
+    el8_package_state: present
+  when: use_native_el8_package_tools | bool
 
 - name: enable cloud-init related services
   ansible.builtin.service:
